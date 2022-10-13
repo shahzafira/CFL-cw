@@ -11,8 +11,6 @@
 //   amm re3.sc all
 
 // Testing
-// matcher(PLUS(CHAR('a')), "")
-// matcher(RANGE(List('a', 'b')), "a")
 // matcher(BETWEEN(CHAR('a'), 2, 4), "")
 
 
@@ -55,7 +53,7 @@ def nullable (r: Rexp) : Boolean = r match {
   case UPTO(r, m) => true
   case FROM(r, n) => if (n == 0) true else nullable(r)
   // maybe check n? what difference does it make
-  case BETWEEN(r, n, m) => if (n == m) true else nullable(r)
+  case BETWEEN(r, n, m) => if (m == 0) true else nullable(r)
   case NOT(r) => !nullable(r)
   // case CFUN(f) => 
 }
@@ -81,7 +79,8 @@ def der(c: Char, r: Rexp) : Rexp = r match {
   case OPTION(r) => der(c, r)
   case UPTO(r, m) => if (m == 0) ZERO else SEQ(der(c, r), UPTO(r, m-1))
   // check these cases and the last section
-  case FROM(r, n) => if (n == 0) ZERO else SEQ(der(c, r), FROM(r, n-1))
+  case FROM(r, n) => SEQ(SEQ(der(c, r), FROM(r, n-1)), STAR(r))
+  // case FROM(r, n) => if (n == 0) ZERO else SEQ(der(c, r), FROM(r, n-1))
   case BETWEEN(r, n, m) => if (n == 0) ZERO else SEQ(der(c, r), UPTO(r, m-1))
   // case recursive?
   case NOT(r) => NOT(der(c, r))
@@ -125,6 +124,10 @@ def OPT(r: Rexp) = ALT(r, ONE)
 // SEQ(SEQ(SEQ(SEQ(PLUS(_), @), PLUS(_)), .), BETWEEN(_, 2, 6))
 // zafira.shah@kcl.ac.uk
 // use the matcher algorithm
+// or use the der function?
+// ders("zafira.shah@kcl.ac.uk".toList, SEQ(SEQ(SEQ(SEQ(PLUS(_), @), PLUS(_)), .), BETWEEN(_, 2, 6)))
+
+
 // Test Cases
 
 // evil regular expressions: (a?){n} a{n}  and (a*)* b
@@ -139,47 +142,122 @@ def time_needed[T](i: Int, code: => T) = {
   (end - start)/(i * 1.0e9)
 }
 
-@arg(doc = "Test range")
+@arg(doc = "Test range regular expression")
 @main
 def testrange() = {
   println("matcher(RANGE(List('a', 'b')), \"\")")
-  println(matcher(RANGE(List('a', 'b')), "") == false)
+  println(if (matcher(RANGE(List('a', 'b')), "") == false) "pass" else "fail")
 
   println("matcher(RANGE(List('a', 'b')), \"a\")")
-  println(matcher(RANGE(List('a', 'b')), "a") == true)
+  println(if (matcher(RANGE(List('a', 'b')), "a") == true) "pass" else "fail")
 
   println("matcher(RANGE(List('a', 'b')), \"b\")")
-  println(matcher(RANGE(List('a', 'b')), "b") == true)
+  println(if (matcher(RANGE(List('a', 'b')), "b") == true) "pass" else "fail")
 
   println("matcher(RANGE(List('a', 'b')), \"c\")")
-  println(matcher(RANGE(List('a', 'b')), "c") == false)
+  println(if (matcher(RANGE(List('a', 'b')), "c") == false) "pass" else "fail")
 
   println("matcher(RANGE(List('a', 'b')), \"ab\")")
-  println(matcher(RANGE(List('a', 'b')), "ab") == false)
+  println(if (matcher(RANGE(List('a', 'b')), "ab") == false) "pass" else "fail")
 }
 
-@arg(doc = "Test plus")
+@arg(doc = "Test plus regular expression")
 @main
 def testplus() = {
   println("matcher(PLUS(CHAR('a')), \"\")")
-  println(matcher(PLUS(CHAR('a')), "") == false)
+  println(if (matcher(PLUS(CHAR('a')), "") == false) "pass" else "fail")
 
   println("matcher(PLUS(CHAR('a')), \"a\")")
-  println(matcher(PLUS(CHAR('a')), "a") == true)
+  println(if (matcher(PLUS(CHAR('a')), "a") == true) "pass" else "fail")
 
   println("matcher(PLUS(CHAR('a')), \"aa\")")
-  println(matcher(PLUS(CHAR('a')), "aa") == true)
+  println(if (matcher(PLUS(CHAR('a')), "aa") == true) "pass" else "fail")
 
   println("matcher(PLUS(CHAR('a')), \"aaa\")")
-  println(matcher(PLUS(CHAR('a')), "aaa") == true)
+  println(if (matcher(PLUS(CHAR('a')), "aaa") == true) "pass" else "fail")
 
   println("matcher(PLUS(CHAR('a')), \"b\")")
-  println(matcher(PLUS(CHAR('a')), "b") == false)
+  println(if (matcher(PLUS(CHAR('a')), "b") == false) "pass" else "fail")
 
   println("matcher(PLUS(CHAR('a')), \"ab\")")
-  println(matcher(PLUS(CHAR('a')), "ab") == false)
+  println(if (matcher(PLUS(CHAR('a')), "ab") == false) "pass" else "fail")
 }
 
+@arg(doc = "Test between regular expression")
+@main
+def testbetween() = {
+  println("matcher(BETWEEN(CHAR('a'), 2, 4), \"\")")
+  println(if (matcher(BETWEEN(CHAR('a'), 2, 4), "") == false) "pass" else "fail")
+
+  println("matcher(BETWEEN(CHAR('a'), 2, 4), \"a\")")
+  println(if (matcher(BETWEEN(CHAR('a'), 2, 4), "a") == false) "pass" else "fail")
+
+  println("matcher(BETWEEN(CHAR('a'), 2, 4), \"aa\")")
+  println(if (matcher(BETWEEN(CHAR('a'), 2, 4), "aa") == true) "pass" else "fail")
+
+  println("matcher(BETWEEN(CHAR('a'), 2, 4), \"aaa\")")
+  println(if (matcher(BETWEEN(CHAR('a'), 2, 4), "aaa") == true) "pass" else "fail")
+
+  println("matcher(BETWEEN(CHAR('a'), 2, 4), \"aaaa\")")
+  println(if (matcher(BETWEEN(CHAR('a'), 2, 4), "aaaa") == true) "pass" else "fail")
+
+  println("matcher(BETWEEN(CHAR('a'), 2, 4), \"aaaaa\")")
+  println(if (matcher(BETWEEN(CHAR('a'), 2, 4), "aaaaa") == false) "pass" else "fail")
+
+  println("matcher(BETWEEN(CHAR('a'), 2, 4), \"b\")")
+  println(if (matcher(BETWEEN(CHAR('a'), 2, 4), "b") == false) "pass" else "fail")
+
+  println("matcher(BETWEEN(CHAR('a'), 2, 4), \"bbb\")")
+  println(if (matcher(BETWEEN(CHAR('a'), 2, 4), "bbb") == false) "pass" else "fail")
+}
+
+@arg(doc = "Test upto regular expression")
+@main
+def testupto() = {
+  println("matcher(UPTO(CHAR('a'), 3), \"\")")
+  println(if (matcher(UPTO(CHAR('a'), 3), "") == true) "pass" else "fail")
+
+  println("matcher(UPTO(CHAR('a'), 3), \"a\")")
+  println(if (matcher(UPTO(CHAR('a'), 3), "a") == true) "pass" else "fail")
+
+  println("matcher(UPTO(CHAR('a'), 3), \"aa\")")
+  println(if (matcher(UPTO(CHAR('a'), 3), "aa") == true) "pass" else "fail")
+
+  println("matcher(UPTO(CHAR('a'), 3), \"aaa\")")
+  println(if (matcher(UPTO(CHAR('a'), 3), "aaa") == true) "pass" else "fail")
+
+  println("matcher(UPTO(CHAR('a'), 3), \"aaaa\")")
+  println(if (matcher(UPTO(CHAR('a'), 3), "aaaa") == false) "pass" else "fail")
+
+  println("matcher(UPTO(CHAR('a'), 3), \"b\")")
+  println(if (matcher(UPTO(CHAR('a'), 3), "b") == false) "pass" else "fail")
+
+  println("matcher(UPTO(CHAR('a'), 3), \"bbb\")")
+  println(if (matcher(UPTO(CHAR('a'), 3), "bbb") == false) "pass" else "fail")
+
+}
+
+@arg(doc = "Test from regular expression")
+@main
+def testfrom() = {
+  println("matcher(FROM(CHAR('a'), 2), \"\")")
+  println(if (matcher(FROM(CHAR('a'), 2), "") == false) "pass" else "fail")
+
+  println("matcher(FROM(CHAR('a'), 2), \"a\")")
+  println(if (matcher(FROM(CHAR('a'), 2), "a") == false) "pass" else "fail")
+
+  println("matcher(FROM(CHAR('a'), 2), \"aa\")")
+  println(if (matcher(FROM(CHAR('a'), 2), "aa") == true) "pass" else "fail")
+
+  println("matcher(FROM(CHAR('a'), 2), \"aaa\")")
+  println(if (matcher(FROM(CHAR('a'), 2), "aaa") == true) "pass" else "fail")
+
+  println("matcher(FROM(CHAR('a'), 2), \"b\")")
+  println(if (matcher(FROM(CHAR('a'), 2), "b") == false) "pass" else "fail")
+
+  println("matcher(FROM(CHAR('a'), 2), \"bb\")")
+  println(if (matcher(FROM(CHAR('a'), 2), "bb") == false) "pass" else "fail")
+}
 
 @arg(doc = "Test (a?{n}) (a{n})")
 @main
