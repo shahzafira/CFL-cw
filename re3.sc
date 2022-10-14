@@ -80,9 +80,9 @@ def der(c: Char, r: Rexp) : Rexp = r match {
   case UPTO(r, m) => if (m == 0) ZERO else SEQ(der(c, r), UPTO(r, m-1))
   // check these cases and the last section
   case FROM(r, n) => SEQ(SEQ(der(c, r), FROM(r, n-1)), STAR(r))
-  // case FROM(r, n) => if (n == 0) ZERO else SEQ(der(c, r), FROM(r, n-1))
-  case BETWEEN(r, n, m) => if (n == 0) ZERO else SEQ(der(c, r), UPTO(r, m-1))
   // case recursive?
+  case BETWEEN(r, n, m) => if (m == 0) ZERO else SEQ(SEQ(der(c, r), NTIMES(r, n-1)), UPTO(r, m-n))
+  // der c r . r(m-1)
   case NOT(r) => NOT(der(c, r))
   // case CFUN(f) => 
 }
