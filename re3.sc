@@ -116,21 +116,10 @@ def matcher(r: Rexp, s: String) : Boolean =
 // one or zero
 def OPT(r: Rexp) = ALT(r, ONE)
 
-// can replicate the other functions of CHAR, RANGE
-def CFUNCHAR(c: Char) : Rexp = {
-  def f(d: Char) = c == d
-  CFUN(f)
-}
-def CFUNRANGE(ls: Set[Char]) : Rexp = {
-  def f(d: Char) = ls.contains(d)
-  CFUN(f)
-}
-// always true
-def CFUNALL() : Rexp = {
-  def f(d: Char) = true
-  CFUN(f)
-}
 
+// question 3
+// should print out in the same order as the table in the 
+// coursework document
 @main
 def q3() = {
   val regex = List(
@@ -161,6 +150,35 @@ def q3() = {
   }
 
 }
+
+// question 4
+// can replicate the other functions of CHAR, RANGE
+def CFUNCHAR(c: Char) : Rexp = {
+  def f(d: Char) = c == d
+  CFUN(f)
+}
+def CFUNRANGE(ls: Set[Char]) : Rexp = {
+  def f(d: Char) = ls.contains(d)
+  CFUN(f)
+}
+// always true
+def CFUNALL() : Rexp = {
+  def f(d: Char) = true
+  CFUN(f)
+}
+
+// question 5
+@main
+def q5() = {
+  val charset = ('a' to 'z').toSet ++ ('0' to '9').toSet ++ Set('.')
+  val charset2 = ('a' to 'z').toSet ++ ('0' to '9').toSet ++ (".-").toSet
+  val charset3 = ('a' to 'z').toSet ++ ('0' to '9').toSet ++ (".-_").toSet
+  val emailrexp = SEQ(SEQ(SEQ(SEQ(PLUS(RANGE(charset3)), CHAR('@')), PLUS(RANGE(charset2))), CHAR('.')), BETWEEN(RANGE(charset), 2, 6))
+  println(ders(("zafira.shah@kcl.ac.uk").toList, emailrexp))
+  println(matcher(emailrexp, "zafira.shah@kcl.ac.uk"))
+}
+
+
 // email address rexp
 // SEQ(SEQ(SEQ(SEQ(PLUS(_), @), PLUS(_)), .), BETWEEN(_, 2, 6))
 // zafira.shah@kcl.ac.uk
@@ -183,16 +201,6 @@ def time_needed[T](i: Int, code: => T) = {
   (end - start)/(i * 1.0e9)
 }
 
-@arg(doc = "Test email regular expression")
-@main
-def testemail() = {
-  val charset = ('a' to 'z').toSet ++ ('0' to '9').toSet ++ Set('.')
-  val charset2 = ('a' to 'z').toSet ++ ('0' to '9').toSet ++ (".-").toSet
-  val charset3 = ('a' to 'z').toSet ++ ('0' to '9').toSet ++ (".-_").toSet
-  val emailrexp = SEQ(SEQ(SEQ(SEQ(PLUS(RANGE(charset3)), CHAR('@')), PLUS(RANGE(charset2))), CHAR('.')), BETWEEN(RANGE(charset), 2, 6))
-  println(ders(("zafira.shah@kcl.ac.uk").toList, emailrexp))
-  println(if (matcher(emailrexp, "zafira.shah@kcl.ac.uk") == true) "pass" else "fail")
-}
 
 @arg(doc = "Test range regular expression")
 @main
