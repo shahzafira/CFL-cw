@@ -66,19 +66,15 @@ def der(c: Char, r: Rexp) : Rexp = r match {
   case STAR(r1) => SEQ(der(c, r1), STAR(r1))
   case NTIMES(r, i) => 
     if (i == 0) ZERO else SEQ(der(c, r), NTIMES(r, i - 1))
-  // for range pass s as a counter, check first character is C, else recursive with s-1 s[0]
-  // Look at look for contains and derivatives
+  // as long as ls contains at least one matching char then it can pass an empty string
   case RANGE(ls) => if (ls.contains(c)) ONE else ZERO
-  // because of the SEQ it cant be nullable, so theres no need to check
   case PLUS(r) => SEQ(der(c, r), STAR(r))
   case OPTIONAL(r) => der(c, r)
   case UPTO(r, m) => if (m == 0) ZERO else SEQ(der(c, r), UPTO(r, m-1))
-  // check these cases and the last section
   case FROM(r, n) => SEQ(SEQ(der(c, r), FROM(r, n-1)), STAR(r))
-  case BETWEEN(r, n, m) => if (m == 0) ZERO else SEQ(SEQ(der(c, r), NTIMES(r, n-1)), UPTO(r, m-n))
   // n times at least, followed up upto(m)
+  case BETWEEN(r, n, m) => if (m == 0) ZERO else SEQ(SEQ(der(c, r), NTIMES(r, n-1)), UPTO(r, m-n))
   case NOT(r) => NOT(der(c, r))
-  // case CFUN(f) => if (f == false) ZERO else der(CFUN(f), r)
   case CFUN(f) => if (f(c)) ONE else ZERO
   // if f accepts char, then there is a set to derivate
 }
@@ -122,7 +118,7 @@ def OPT(r: Rexp) = ALT(r, ONE)
 // coursework document
 @main
 def q3() = {
-  val regex = List(
+  val rexps = List(
     OPTIONAL(CHAR('a')),
     NOT(CHAR('a')),
     NTIMES(CHAR('a'), 3),
@@ -143,7 +139,7 @@ def q3() = {
   )
 
   for (string <- strings) {
-    for (rexp <- regex) {
+    for (rexp <- rexps) {
       print(matcher(rexp, string) + "    ")
     }
     println("\n")
@@ -186,6 +182,46 @@ def q5() = {
 // or use the der function?
 // ders("zafira.shah@kcl.ac.uk".toList, SEQ(SEQ(SEQ(SEQ(PLUS(), @), PLUS(_)), .), BETWEEN(_, 2, 6)))
 
+// question 6
+@main
+def q6() {
+  val notrexp = NOT(SEQ(SEQ(SEQ(STAR(CFUNALL), CHAR('*')), CHAR('/')), STAR(CFUNALL)))
+  val rexp = SEQ(SEQ(SEQ(SEQ(CHAR('/'), CHAR('*')), notrexp), CHAR('*')), CHAR('/'))
+
+  val strings = List(
+    "/**/",
+    "/*foobar*/",
+    "/*test*/test*/",
+    "/*test/*test*/"
+  )
+  
+  for (string <- strings) {
+    println(string + " " + matcher(rexp, string))
+  }
+}
+
+// question 7
+@main
+def q7() {
+  val r1 = SEQ(SEQ(CHAR('a'), CHAR('a')), CHAR('a'))
+  val r2 = SEQ(BETWEEN(CHAR('a'), 19, 19), OPTIONAL(CHAR('a')))
+
+  val strings = List(
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  )
+
+  println("((a . a . a)+)+")
+  for (string <- strings) {
+    println(matcher(PLUS(PLUS(r1)), string))
+  }
+  println("\n(((a{19,19}) . (a?))+)+")
+  for (string <- strings) {
+    println(matcher(PLUS(PLUS(r2)), string))
+  }
+}
+
 
 // Test Cases
 
@@ -200,6 +236,54 @@ def time_needed[T](i: Int, code: => T) = {
   val end = System.nanoTime()
   (end - start)/(i * 1.0e9)
 }
+
+
+@arg(doc = "Test (a?{n}) (a{n})")
+@main
+def test1() = {
+  println("Test (a?{n}) (a{n})")
+
+  for (i <- 0 to 9000 by 1000) {
+    println(f"$i: ${time_needed(3, matcher(EVIL1(i), "a" * i))}%.5f")
+  }
+}  
+
+@arg(doc = "Test (a*)* b")
+@main
+def test2() = {
+  println("Test (a*)* b")
+
+  for (i <- 0 to 6000000 by 500000) {
+    println(f"$i: ${time_needed(3, matcher(EVIL2, "a" * i))}%.5f")
+  }
+}
+
+// size of a regular expressions - for testing purposes 
+def size(r: Rexp) : Int = r match {
+  case ZERO => 1
+  case ONE => 1
+  case CHAR(_) => 1
+  case ALT(r1, r2) => 1 + size(r1) + size(r2)
+  case SEQ(r1, r2) => 1 + size(r1) + size(r2)
+  case STAR(r) => 1 + size(r)
+  case NTIMES(r, _) => 1 + size(r)
+}
+
+
+// now the size of the derivatives grows 
+// much, much slower
+
+size(ders("".toList, EVIL2))      // 5
+size(ders("a".toList, EVIL2))     // 8
+size(ders("aa".toList, EVIL2))    // 8
+size(ders("aaa".toList, EVIL2))   // 8
+size(ders("aaaa".toList, EVIL2))  // 8
+size(ders("aaaaa".toList, EVIL2)) // 8
+
+
+@arg(doc = "All tests.")
+@main
+def all() = { test1(); test2() } 
 
 
 @arg(doc = "Test range regular expression")
@@ -352,56 +436,6 @@ def testnot() = {
   println("matcher(NOT(CHAR('a')), \"bb\")")
   println(if (matcher(NOT(CHAR('a')), "bb") == true) "pass" else "fail")
 }
-
-
-@arg(doc = "Test (a?{n}) (a{n})")
-@main
-def test1() = {
-  println("Test (a?{n}) (a{n})")
-
-  for (i <- 0 to 9000 by 1000) {
-    println(f"$i: ${time_needed(3, matcher(EVIL1(i), "a" * i))}%.5f")
-  }
-}  
-
-@arg(doc = "Test (a*)* b")
-@main
-def test2() = {
-  println("Test (a*)* b")
-
-  for (i <- 0 to 6000000 by 500000) {
-    println(f"$i: ${time_needed(3, matcher(EVIL2, "a" * i))}%.5f")
-  }
-}
-
-// size of a regular expressions - for testing purposes 
-def size(r: Rexp) : Int = r match {
-  case ZERO => 1
-  case ONE => 1
-  case CHAR(_) => 1
-  case ALT(r1, r2) => 1 + size(r1) + size(r2)
-  case SEQ(r1, r2) => 1 + size(r1) + size(r2)
-  case STAR(r) => 1 + size(r)
-  case NTIMES(r, _) => 1 + size(r)
-}
-
-
-// now the size of the derivatives grows 
-// much, much slower
-
-size(ders("".toList, EVIL2))      // 5
-size(ders("a".toList, EVIL2))     // 8
-size(ders("aa".toList, EVIL2))    // 8
-size(ders("aaa".toList, EVIL2))   // 8
-size(ders("aaaa".toList, EVIL2))  // 8
-size(ders("aaaaa".toList, EVIL2)) // 8
-
-
-@arg(doc = "All tests.")
-@main
-def all() = { test1(); test2() } 
-
-
 
 
 
