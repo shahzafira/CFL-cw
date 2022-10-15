@@ -131,6 +131,36 @@ def CFUNALL() : Rexp = {
   CFUN(f)
 }
 
+@main
+def q3() = {
+  val regex = List(
+    OPTIONAL(CHAR('a')),
+    NOT(CHAR('a')),
+    NTIMES(CHAR('a'), 3),
+    NTIMES(OPTIONAL(CHAR('a')), 3),
+    UPTO(CHAR('a'), 3),
+    UPTO(OPTIONAL(CHAR('a')), 3),
+    BETWEEN(CHAR('a'), 3, 5),
+    BETWEEN(OPTIONAL(CHAR('a')), 3, 5)
+  )
+
+  val strings = List(
+    "",
+    "a",
+    "aa",
+    "aaa",
+    "aaaaa",
+    "aaaaaa"
+  )
+
+  for (string <- strings) {
+    for (rexp <- regex) {
+      print(matcher(rexp, string) + "    ")
+    }
+    println("\n")
+  }
+
+}
 // email address rexp
 // SEQ(SEQ(SEQ(SEQ(PLUS(_), @), PLUS(_)), .), BETWEEN(_, 2, 6))
 // zafira.shah@kcl.ac.uk
