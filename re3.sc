@@ -22,10 +22,9 @@ case class ALT(r1: Rexp, r2: Rexp) extends Rexp
 case class SEQ(r1: Rexp, r2: Rexp) extends Rexp 
 case class STAR(r: Rexp) extends Rexp 
 case class NTIMES(r: Rexp, n: Int) extends Rexp 
-// check range input type, could be list or set
 case class RANGE(ls: Set[Char]) extends Rexp
 case class PLUS(r: Rexp) extends Rexp
-case class OPTION(r: Rexp) extends Rexp
+case class OPTIONAL(r: Rexp) extends Rexp
 case class UPTO(r: Rexp, m: Int) extends Rexp
 case class FROM(r: Rexp, n: Int) extends Rexp
 case class BETWEEN(r: Rexp, n: Int, m: Int) extends Rexp
@@ -46,12 +45,12 @@ def nullable (r: Rexp) : Boolean = r match {
   case NTIMES(r, i) => if (i == 0) true else nullable(r)
   case RANGE(r) => false
   case PLUS(r) => nullable(r)
-  case OPTION(r) => true
+  case OPTIONAL(r) => true
   case UPTO(r, m) => true
   case FROM(r, n) => if (n == 0) true else nullable(r)
   case BETWEEN(r, n, m) => if (m == 0) true else nullable(r)
-  case NOT(r) => !(nullable(r))
-  // case CFUN(f) => 
+  case NOT(r) => !nullable(r)
+  case CFUN(f) => false 
 }
 
 // the derivative of a regular expression w.r.t. a character
@@ -71,16 +70,16 @@ def der(c: Char, r: Rexp) : Rexp = r match {
   case RANGE(ls) => if (ls.contains(c)) ONE else ZERO
   // because of the SEQ it cant be nullable, so theres no need to check
   case PLUS(r) => SEQ(der(c, r), STAR(r))
-  // case OPTION(r) => if (nullable(r)) ZERO else der(c, r)
-  case OPTION(r) => der(c, r)
+  case OPTIONAL(r) => der(c, r)
   case UPTO(r, m) => if (m == 0) ZERO else SEQ(der(c, r), UPTO(r, m-1))
   // check these cases and the last section
   case FROM(r, n) => SEQ(SEQ(der(c, r), FROM(r, n-1)), STAR(r))
-  // case recursive?
   case BETWEEN(r, n, m) => if (m == 0) ZERO else SEQ(SEQ(der(c, r), NTIMES(r, n-1)), UPTO(r, m-n))
-  // der c r . r(m-1)
+  // n times at least, followed up upto(m)
   case NOT(r) => NOT(der(c, r))
-  // case CFUN(f) => 
+  // case CFUN(f) => if (f == false) ZERO else der(CFUN(f), r)
+  case CFUN(f) => if (f(c)) ONE else ZERO
+  // if f accepts char, then there is a set to derivate
 }
 
 def simp(r: Rexp) : Rexp = r match {
@@ -116,12 +115,29 @@ def matcher(r: Rexp, s: String) : Boolean =
 // one or zero
 def OPT(r: Rexp) = ALT(r, ONE)
 
+// can replicate the other functions of CHAR, RANGE
+def CFUNCHAR(c: Char) : Rexp = {
+  def f(d: Char) = c == d
+  CFUN(f)
+}
+def CFUNRANGE(ls: Set[Char]) : Rexp = {
+  def f(d: Char) = ls.contains(d)
+  CFUN(f)
+}
+// always true
+def CFUNALL() : Rexp = {
+  def f(d: Char) = true
+  CFUN(f)
+}
+
 // email address rexp
 // SEQ(SEQ(SEQ(SEQ(PLUS(_), @), PLUS(_)), .), BETWEEN(_, 2, 6))
 // zafira.shah@kcl.ac.uk
 // use the matcher algorithm
 // or use the der function?
 // ders("zafira.shah@kcl.ac.uk".toList, SEQ(SEQ(SEQ(SEQ(PLUS(), @), PLUS(_)), .), BETWEEN(_, 2, 6)))
+
+
 // Test Cases
 
 // evil regular expressions: (a?){n} a{n}  and (a*)* b
@@ -188,20 +204,20 @@ def testplus() = {
   println(if (matcher(PLUS(CHAR('a')), "ab") == false) "pass" else "fail")
 }
 
-@arg(doc = "Test option regular expression")
+@arg(doc = "Test optional regular expression")
 @main
-def testoption() = {
-  println("matcher(OPTION(CHAR('a')), \"\")")
-  println(if (matcher(OPTION(CHAR('a')), "") == true) "pass" else "fail")
+def testoptional() = {
+  println("matcher(OPTIONAL(CHAR('a')), \"\")")
+  println(if (matcher(OPTIONAL(CHAR('a')), "") == true) "pass" else "fail")
 
-  println("matcher(OPTION(CHAR('a')), \"a\")")
-  println(if (matcher(OPTION(CHAR('a')), "a") == true) "pass" else "fail")
+  println("matcher(OPTIONAL(CHAR('a')), \"a\")")
+  println(if (matcher(OPTIONAL(CHAR('a')), "a") == true) "pass" else "fail")
 
-  println("matcher(OPTION(CHAR('a')), \"aa\")")
-  println(if (matcher(OPTION(CHAR('a')), "aa") == false) "pass" else "fail")
+  println("matcher(OPTIONAL(CHAR('a')), \"aa\")")
+  println(if (matcher(OPTIONAL(CHAR('a')), "aa") == false) "pass" else "fail")
 
-  println("matcher(OPTION(CHAR('a')), \"b\")")
-  println(if (matcher(OPTION(CHAR('a')), "b") == false) "pass" else "fail")
+  println("matcher(OPTIONAL(CHAR('a')), \"b\")")
+  println(if (matcher(OPTIONAL(CHAR('a')), "b") == false) "pass" else "fail")
 }
 
 @arg(doc = "Test upto regular expression")
@@ -289,7 +305,7 @@ def testnot() = {
   println(if (matcher(NOT(CHAR('a')), "a") == false) "pass" else "fail")
 
   println("matcher(NOT(CHAR('a')), \"aa\")")
-  println(if (matcher(NOT(CHAR('a')), "aa") == false) "pass" else "fail")
+  println(if (matcher(NOT(CHAR('a')), "aa") == true) "pass" else "fail")
 
   println("matcher(NOT(CHAR('a')), \"b\")")
   println(if (matcher(NOT(CHAR('a')), "b") == true) "pass" else "fail")
