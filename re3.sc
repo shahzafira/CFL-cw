@@ -49,10 +49,11 @@ def nullable (r: Rexp) : Boolean = r match {
   case OPTIONAL(r) => true
   case UPTO(r, m) => true
   case FROM(r, n) => if (n == 0) true else nullable(r)
-  case BETWEEN(r, n, m) => if (m == 0) true else nullable(r)
+  case BETWEEN(r, n, m) => if (n == 0) true else nullable(r)
   case NOT(r) => !nullable(r)
   case CFUN(f) => false 
 }
+
 
 // the derivative of a regular expression w.r.t. a character
 def der(c: Char, r: Rexp) : Rexp = r match {
@@ -68,12 +69,12 @@ def der(c: Char, r: Rexp) : Rexp = r match {
     if (i == 0) ZERO else SEQ(der(c, r), NTIMES(r, i - 1))
   // as long as ls contains at least one matching char then it can pass an empty string
   case RANGE(ls) => if (ls.contains(c)) ONE else ZERO
-  case PLUS(r) => SEQ(der(c, r), STAR(r))
+  case PLUS(r) => SEQ(der(c, r), OPTIONAL(PLUS(r)))
   case OPTIONAL(r) => der(c, r)
   case UPTO(r, m) => if (m == 0) ZERO else SEQ(der(c, r), UPTO(r, m-1))
-  case FROM(r, n) => SEQ(SEQ(der(c, r), FROM(r, n-1)), STAR(r))
-  // n times at least, followed up upto(m)
-  case BETWEEN(r, n, m) => if (m == 0) ZERO else SEQ(SEQ(der(c, r), NTIMES(r, n-1)), UPTO(r, m-n))
+  case FROM(r, n) => if (n == 0) SEQ(der(c, r), PLUS(OPTIONAL(r))) else SEQ(SEQ(der(c, r), FROM(r, n-1)), PLUS(OPTIONAL(r)))
+  // n times at least, followed up upto(m) 
+  case BETWEEN(r, n, m) => if (m == 0) ZERO else if (n == 0) SEQ(der(c, r), UPTO(r, n)) else SEQ(SEQ(der(c, r), NTIMES(r, n-1)), UPTO(r, m-n)) 
   case NOT(r) => NOT(der(c, r))
   case CFUN(f) => if (f(c)) ONE else ZERO
   // if f accepts char, then there is a set to derivate
@@ -112,6 +113,22 @@ def matcher(r: Rexp, s: String) : Boolean =
 // one or zero
 def OPT(r: Rexp) = ALT(r, ONE)
 
+// question 4
+// can replicate the other functions of CHAR, RANGE
+// had to be before q3 so that it can be used
+def CFUNCHAR(c: Char) : Rexp = {
+  def f(d: Char) = c == d
+  CFUN(f)
+}
+def CFUNRANGE(ls: Set[Char]) : Rexp = {
+  def f(d: Char) = ls.contains(d)
+  CFUN(f)
+}
+// always true
+def CFUNALL() : Rexp = {
+  def f(d: Char) = true
+  CFUN(f)
+}
 
 // question 3
 // should print out in the same order as the table in the 
@@ -119,14 +136,14 @@ def OPT(r: Rexp) = ALT(r, ONE)
 @main
 def q3() = {
   val rexps = List(
-    OPTIONAL(CHAR('a')),
-    NOT(CHAR('a')),
-    NTIMES(CHAR('a'), 3),
-    NTIMES(OPTIONAL(CHAR('a')), 3),
-    UPTO(CHAR('a'), 3),
-    UPTO(OPTIONAL(CHAR('a')), 3),
-    BETWEEN(CHAR('a'), 3, 5),
-    BETWEEN(OPTIONAL(CHAR('a')), 3, 5)
+    OPTIONAL(CFUNCHAR('a')),
+    NOT(CFUNCHAR('a')),
+    NTIMES(CFUNCHAR('a'), 3),
+    NTIMES(OPTIONAL(CFUNCHAR('a')), 3),
+    UPTO(CFUNCHAR('a'), 3),
+    UPTO(OPTIONAL(CFUNCHAR('a')), 3),
+    BETWEEN(CFUNCHAR('a'), 3, 5),
+    BETWEEN(OPTIONAL(CFUNCHAR('a')), 3, 5)
   )
 
   val strings = List(
@@ -147,23 +164,9 @@ def q3() = {
 
 }
 
-// question 4
-// can replicate the other functions of CHAR, RANGE
-def CFUNCHAR(c: Char) : Rexp = {
-  def f(d: Char) = c == d
-  CFUN(f)
-}
-def CFUNRANGE(ls: Set[Char]) : Rexp = {
-  def f(d: Char) = ls.contains(d)
-  CFUN(f)
-}
-// always true
-def CFUNALL() : Rexp = {
-  def f(d: Char) = true
-  CFUN(f)
-}
 
 // question 5
+// zafira.shah@kcl.ac.uk
 @main
 def q5() = {
   val charset = ('a' to 'z').toSet ++ ('0' to '9').toSet ++ Set('.')
@@ -175,18 +178,11 @@ def q5() = {
 }
 
 
-// email address rexp
-// SEQ(SEQ(SEQ(SEQ(PLUS(_), @), PLUS(_)), .), BETWEEN(_, 2, 6))
-// zafira.shah@kcl.ac.uk
-// use the matcher algorithm
-// or use the der function?
-// ders("zafira.shah@kcl.ac.uk".toList, SEQ(SEQ(SEQ(SEQ(PLUS(), @), PLUS(_)), .), BETWEEN(_, 2, 6)))
-
 // question 6
 @main
 def q6() {
-  val notrexp = NOT(SEQ(SEQ(SEQ(STAR(CFUNALL), CHAR('*')), CHAR('/')), STAR(CFUNALL)))
-  val rexp = SEQ(SEQ(SEQ(SEQ(CHAR('/'), CHAR('*')), notrexp), CHAR('*')), CHAR('/'))
+  val notrexp = NOT(SEQ(SEQ(SEQ(STAR(CFUNALL), CFUNCHAR('*')), CFUNCHAR('/')), STAR(CFUNALL)))
+  val rexp = SEQ(SEQ(SEQ(SEQ(CFUNCHAR('/'), CFUNCHAR('*')), notrexp), CFUNCHAR('*')), CFUNCHAR('/'))
 
   val strings = List(
     "/**/",
@@ -203,8 +199,8 @@ def q6() {
 // question 7
 @main
 def q7() {
-  val r1 = SEQ(SEQ(CHAR('a'), CHAR('a')), CHAR('a'))
-  val r2 = SEQ(BETWEEN(CHAR('a'), 19, 19), OPTIONAL(CHAR('a')))
+  val r1 = SEQ(SEQ(CFUNCHAR('a'), CFUNCHAR('a')), CFUNCHAR('a'))
+  val r2 = SEQ(BETWEEN(CFUNCHAR('a'), 19, 19), OPTIONAL(CFUNCHAR('a')))
 
   val strings = List(
     "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -289,152 +285,152 @@ def all() = { test1(); test2() }
 @arg(doc = "Test range regular expression")
 @main
 def testrange() = {
-  println("matcher(RANGE(Set('a', 'b')), \"\")")
-  println(if (matcher(RANGE(Set('a', 'b')), "") == false) "pass" else "fail")
+  println("matcher(CFUNRANGE(Set('a', 'b')), \"\")")
+  println(if (matcher(CFUNRANGE(Set('a', 'b')), "") == false) "pass" else "fail")
 
-  println("matcher(RANGE(Set('a', 'b')), \"a\")")
-  println(if (matcher(RANGE(Set('a', 'b')), "a") == true) "pass" else "fail")
+  println("matcher(CFUNRANGE(Set('a', 'b')), \"a\")")
+  println(if (matcher(CFUNRANGE(Set('a', 'b')), "a") == true) "pass" else "fail")
 
-  println("matcher(RANGE(Set('a', 'b')), \"b\")")
-  println(if (matcher(RANGE(Set('a', 'b')), "b") == true) "pass" else "fail")
+  println("matcher(CFUNRANGE(Set('a', 'b')), \"b\")")
+  println(if (matcher(CFUNRANGE(Set('a', 'b')), "b") == true) "pass" else "fail")
 
-  println("matcher(RANGE(Set('a', 'b')), \"c\")")
-  println(if (matcher(RANGE(Set('a', 'b')), "c") == false) "pass" else "fail")
+  println("matcher(CFUNRANGE(Set('a', 'b')), \"c\")")
+  println(if (matcher(CFUNRANGE(Set('a', 'b')), "c") == false) "pass" else "fail")
 
-  println("matcher(RANGE(Set('a', 'b')), \"ab\")")
-  println(if (matcher(RANGE(Set('a', 'b')), "ab") == false) "pass" else "fail")
+  println("matcher(CFUNRANGE(Set('a', 'b')), \"ab\")")
+  println(if (matcher(CFUNRANGE(Set('a', 'b')), "ab") == false) "pass" else "fail")
 }
 
 @arg(doc = "Test plus regular expression")
 @main
 def testplus() = {
-  println("matcher(PLUS(CHAR('a')), \"\")")
-  println(if (matcher(PLUS(CHAR('a')), "") == false) "pass" else "fail")
+  println("matcher(PLUS(CFUNCHAR('a')), \"\")")
+  println(if (matcher(PLUS(CFUNCHAR('a')), "") == false) "pass" else "fail")
 
-  println("matcher(PLUS(CHAR('a')), \"a\")")
-  println(if (matcher(PLUS(CHAR('a')), "a") == true) "pass" else "fail")
+  println("matcher(PLUS(CFUNCHAR('a')), \"a\")")
+  println(if (matcher(PLUS(CFUNCHAR('a')), "a") == true) "pass" else "fail")
 
-  println("matcher(PLUS(CHAR('a')), \"aa\")")
-  println(if (matcher(PLUS(CHAR('a')), "aa") == true) "pass" else "fail")
+  println("matcher(PLUS(CFUNCHAR('a')), \"aa\")")
+  println(if (matcher(PLUS(CFUNCHAR('a')), "aa") == true) "pass" else "fail")
 
-  println("matcher(PLUS(CHAR('a')), \"aaa\")")
-  println(if (matcher(PLUS(CHAR('a')), "aaa") == true) "pass" else "fail")
+  println("matcher(PLUS(CFUNCHAR('a')), \"aaa\")")
+  println(if (matcher(PLUS(CFUNCHAR('a')), "aaa") == true) "pass" else "fail")
 
-  println("matcher(PLUS(CHAR('a')), \"b\")")
-  println(if (matcher(PLUS(CHAR('a')), "b") == false) "pass" else "fail")
+  println("matcher(PLUS(CFUNCHAR('a')), \"b\")")
+  println(if (matcher(PLUS(CFUNCHAR('a')), "b") == false) "pass" else "fail")
 
-  println("matcher(PLUS(CHAR('a')), \"ab\")")
-  println(if (matcher(PLUS(CHAR('a')), "ab") == false) "pass" else "fail")
+  println("matcher(PLUS(CFUNCHAR('a')), \"ab\")")
+  println(if (matcher(PLUS(CFUNCHAR('a')), "ab") == false) "pass" else "fail")
 }
 
 @arg(doc = "Test optional regular expression")
 @main
 def testoptional() = {
-  println("matcher(OPTIONAL(CHAR('a')), \"\")")
-  println(if (matcher(OPTIONAL(CHAR('a')), "") == true) "pass" else "fail")
+  println("matcher(OPTIONAL(CFUNCHAR('a')), \"\")")
+  println(if (matcher(OPTIONAL(CFUNCHAR('a')), "") == true) "pass" else "fail")
 
-  println("matcher(OPTIONAL(CHAR('a')), \"a\")")
-  println(if (matcher(OPTIONAL(CHAR('a')), "a") == true) "pass" else "fail")
+  println("matcher(OPTIONAL(CFUNCHAR('a')), \"a\")")
+  println(if (matcher(OPTIONAL(CFUNCHAR('a')), "a") == true) "pass" else "fail")
 
-  println("matcher(OPTIONAL(CHAR('a')), \"aa\")")
-  println(if (matcher(OPTIONAL(CHAR('a')), "aa") == false) "pass" else "fail")
+  println("matcher(OPTIONAL(CFUNCHAR('a')), \"aa\")")
+  println(if (matcher(OPTIONAL(CFUNCHAR('a')), "aa") == false) "pass" else "fail")
 
-  println("matcher(OPTIONAL(CHAR('a')), \"b\")")
-  println(if (matcher(OPTIONAL(CHAR('a')), "b") == false) "pass" else "fail")
+  println("matcher(OPTIONAL(CFUNCHAR('a')), \"b\")")
+  println(if (matcher(OPTIONAL(CFUNCHAR('a')), "b") == false) "pass" else "fail")
 }
 
 @arg(doc = "Test upto regular expression")
 @main
 def testupto() = {
-  println("matcher(UPTO(CHAR('a'), 3), \"\")")
-  println(if (matcher(UPTO(CHAR('a'), 3), "") == true) "pass" else "fail")
+  println("matcher(UPTO(CFUNCHAR('a'), 3), \"\")")
+  println(if (matcher(UPTO(CFUNCHAR('a'), 3), "") == true) "pass" else "fail")
 
-  println("matcher(UPTO(CHAR('a'), 3), \"a\")")
-  println(if (matcher(UPTO(CHAR('a'), 3), "a") == true) "pass" else "fail")
+  println("matcher(UPTO(CFUNCHAR('a'), 3), \"a\")")
+  println(if (matcher(UPTO(CFUNCHAR('a'), 3), "a") == true) "pass" else "fail")
 
-  println("matcher(UPTO(CHAR('a'), 3), \"aa\")")
-  println(if (matcher(UPTO(CHAR('a'), 3), "aa") == true) "pass" else "fail")
+  println("matcher(UPTO(CFUNCHAR('a'), 3), \"aa\")")
+  println(if (matcher(UPTO(CFUNCHAR('a'), 3), "aa") == true) "pass" else "fail")
 
-  println("matcher(UPTO(CHAR('a'), 3), \"aaa\")")
-  println(if (matcher(UPTO(CHAR('a'), 3), "aaa") == true) "pass" else "fail")
+  println("matcher(UPTO(CFUNCHAR('a'), 3), \"aaa\")")
+  println(if (matcher(UPTO(CFUNCHAR('a'), 3), "aaa") == true) "pass" else "fail")
 
-  println("matcher(UPTO(CHAR('a'), 3), \"aaaa\")")
-  println(if (matcher(UPTO(CHAR('a'), 3), "aaaa") == false) "pass" else "fail")
+  println("matcher(UPTO(CFUNCHAR('a'), 3), \"aaaa\")")
+  println(if (matcher(UPTO(CFUNCHAR('a'), 3), "aaaa") == false) "pass" else "fail")
 
-  println("matcher(UPTO(CHAR('a'), 3), \"b\")")
-  println(if (matcher(UPTO(CHAR('a'), 3), "b") == false) "pass" else "fail")
+  println("matcher(UPTO(CFUNCHAR('a'), 3), \"b\")")
+  println(if (matcher(UPTO(CFUNCHAR('a'), 3), "b") == false) "pass" else "fail")
 
-  println("matcher(UPTO(CHAR('a'), 3), \"bbb\")")
-  println(if (matcher(UPTO(CHAR('a'), 3), "bbb") == false) "pass" else "fail")
+  println("matcher(UPTO(CFUNCHAR('a'), 3), \"bbb\")")
+  println(if (matcher(UPTO(CFUNCHAR('a'), 3), "bbb") == false) "pass" else "fail")
 }
 
 @arg(doc = "Test from regular expression")
 @main
 def testfrom() = {
-  println("matcher(FROM(CHAR('a'), 2), \"\")")
-  println(if (matcher(FROM(CHAR('a'), 2), "") == false) "pass" else "fail")
+  println("matcher(FROM(CFUNCHAR('a'), 2), \"\")")
+  println(if (matcher(FROM(CFUNCHAR('a'), 2), "") == false) "pass" else "fail")
 
-  println("matcher(FROM(CHAR('a'), 2), \"a\")")
-  println(if (matcher(FROM(CHAR('a'), 2), "a") == false) "pass" else "fail")
+  println("matcher(FROM(CFUNCHAR('a'), 2), \"a\")")
+  println(if (matcher(FROM(CFUNCHAR('a'), 2), "a") == false) "pass" else "fail")
 
-  println("matcher(FROM(CHAR('a'), 2), \"aa\")")
-  println(if (matcher(FROM(CHAR('a'), 2), "aa") == true) "pass" else "fail")
+  println("matcher(FROM(CFUNCHAR('a'), 2), \"aa\")")
+  println(if (matcher(FROM(CFUNCHAR('a'), 2), "aa") == true) "pass" else "fail")
 
-  println("matcher(FROM(CHAR('a'), 2), \"aaa\")")
-  println(if (matcher(FROM(CHAR('a'), 2), "aaa") == true) "pass" else "fail")
+  println("matcher(FROM(CFUNCHAR('a'), 2), \"aaa\")")
+  println(if (matcher(FROM(CFUNCHAR('a'), 2), "aaa") == true) "pass" else "fail")
 
-  println("matcher(FROM(CHAR('a'), 2), \"b\")")
-  println(if (matcher(FROM(CHAR('a'), 2), "b") == false) "pass" else "fail")
+  println("matcher(FROM(CFUNCHAR('a'), 2), \"b\")")
+  println(if (matcher(FROM(CFUNCHAR('a'), 2), "b") == false) "pass" else "fail")
 
-  println("matcher(FROM(CHAR('a'), 2), \"bb\")")
-  println(if (matcher(FROM(CHAR('a'), 2), "bb") == false) "pass" else "fail")
+  println("matcher(FROM(CFUNCHAR('a'), 2), \"bb\")")
+  println(if (matcher(FROM(CFUNCHAR('a'), 2), "bb") == false) "pass" else "fail")
 }
 
 @arg(doc = "Test between regular expression")
 @main
 def testbetween() = {
-  println("matcher(BETWEEN(CHAR('a'), 2, 4), \"\")")
-  println(if (matcher(BETWEEN(CHAR('a'), 2, 4), "") == false) "pass" else "fail")
+  println("matcher(BETWEEN(CFUNCHAR('a'), 2, 4), \"\")")
+  println(if (matcher(BETWEEN(CFUNCHAR('a'), 2, 4), "") == false) "pass" else "fail")
 
-  println("matcher(BETWEEN(CHAR('a'), 2, 4), \"a\")")
-  println(if (matcher(BETWEEN(CHAR('a'), 2, 4), "a") == false) "pass" else "fail")
+  println("matcher(BETWEEN(CFUNCHAR('a'), 2, 4), \"a\")")
+  println(if (matcher(BETWEEN(CFUNCHAR('a'), 2, 4), "a") == false) "pass" else "fail")
 
-  println("matcher(BETWEEN(CHAR('a'), 2, 4), \"aa\")")
-  println(if (matcher(BETWEEN(CHAR('a'), 2, 4), "aa") == true) "pass" else "fail")
+  println("matcher(BETWEEN(CFUNCHAR('a'), 2, 4), \"aa\")")
+  println(if (matcher(BETWEEN(CFUNCHAR('a'), 2, 4), "aa") == true) "pass" else "fail")
 
-  println("matcher(BETWEEN(CHAR('a'), 2, 4), \"aaa\")")
-  println(if (matcher(BETWEEN(CHAR('a'), 2, 4), "aaa") == true) "pass" else "fail")
+  println("matcher(BETWEEN(CFUNCHAR('a'), 2, 4), \"aaa\")")
+  println(if (matcher(BETWEEN(CFUNCHAR('a'), 2, 4), "aaa") == true) "pass" else "fail")
 
-  println("matcher(BETWEEN(CHAR('a'), 2, 4), \"aaaa\")")
-  println(if (matcher(BETWEEN(CHAR('a'), 2, 4), "aaaa") == true) "pass" else "fail")
+  println("matcher(BETWEEN(CFUNCHAR('a'), 2, 4), \"aaaa\")")
+  println(if (matcher(BETWEEN(CFUNCHAR('a'), 2, 4), "aaaa") == true) "pass" else "fail")
 
-  println("matcher(BETWEEN(CHAR('a'), 2, 4), \"aaaaa\")")
-  println(if (matcher(BETWEEN(CHAR('a'), 2, 4), "aaaaa") == false) "pass" else "fail")
+  println("matcher(BETWEEN(CFUNCHAR('a'), 2, 4), \"aaaaa\")")
+  println(if (matcher(BETWEEN(CFUNCHAR('a'), 2, 4), "aaaaa") == false) "pass" else "fail")
 
-  println("matcher(BETWEEN(CHAR('a'), 2, 4), \"b\")")
-  println(if (matcher(BETWEEN(CHAR('a'), 2, 4), "b") == false) "pass" else "fail")
+  println("matcher(BETWEEN(CFUNCHAR('a'), 2, 4), \"b\")")
+  println(if (matcher(BETWEEN(CFUNCHAR('a'), 2, 4), "b") == false) "pass" else "fail")
 
-  println("matcher(BETWEEN(CHAR('a'), 2, 4), \"bbb\")")
-  println(if (matcher(BETWEEN(CHAR('a'), 2, 4), "bbb") == false) "pass" else "fail")
+  println("matcher(BETWEEN(CFUNCHAR('a'), 2, 4), \"bbb\")")
+  println(if (matcher(BETWEEN(CFUNCHAR('a'), 2, 4), "bbb") == false) "pass" else "fail")
 }
 
 @arg(doc = "Test not regular expression")
 @main
 def testnot() = {
-  println("matcher(NOT(CHAR('a')), \"\")")
-  println(if (matcher(NOT(CHAR('a')), "") == true) "pass" else "fail")
+  println("matcher(NOT(CFUNCHAR('a')), \"\")")
+  println(if (matcher(NOT(CFUNCHAR('a')), "") == true) "pass" else "fail")
 
-  println("matcher(NOT(CHAR('a')), \"a\")")
-  println(if (matcher(NOT(CHAR('a')), "a") == false) "pass" else "fail")
+  println("matcher(NOT(CFUNCHAR('a')), \"a\")")
+  println(if (matcher(NOT(CFUNCHAR('a')), "a") == false) "pass" else "fail")
 
-  println("matcher(NOT(CHAR('a')), \"aa\")")
-  println(if (matcher(NOT(CHAR('a')), "aa") == true) "pass" else "fail")
+  println("matcher(NOT(CFUNCHAR('a')), \"aa\")")
+  println(if (matcher(NOT(CFUNCHAR('a')), "aa") == true) "pass" else "fail")
 
-  println("matcher(NOT(CHAR('a')), \"b\")")
-  println(if (matcher(NOT(CHAR('a')), "b") == true) "pass" else "fail")
+  println("matcher(NOT(CFUNCHAR('a')), \"b\")")
+  println(if (matcher(NOT(CFUNCHAR('a')), "b") == true) "pass" else "fail")
 
-  println("matcher(NOT(CHAR('a')), \"bb\")")
-  println(if (matcher(NOT(CHAR('a')), "bb") == true) "pass" else "fail")
+  println("matcher(NOT(CFUNCHAR('a')), \"bb\")")
+  println(if (matcher(NOT(CFUNCHAR('a')), "bb") == true) "pass" else "fail")
 }
 
 
@@ -476,5 +472,4 @@ def test4() = {
 @arg(doc = "Tests that show not all is hunky-dory, but a solution leads too far afield.")
 @main
 def fail() = { test3(); test4() } 
-
 
