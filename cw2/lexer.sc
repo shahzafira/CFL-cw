@@ -205,15 +205,13 @@ val SYM = RANGE("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz._><=;,\\:"
 val DIGIT = RANGE("0123456789")
 val WHITESPACE = PLUS(" " | "\n" | "\t" | "\r")
 // gotta add the other brackets, but how?
-// val PAREN : Rexp = RANGE("({)}")
-val RBRACE : Rexp = "{"
-val LBRACE : Rexp = "}"
-val RPAREN : Rexp = "("
-val LPARENT : Rexp = ")"
+val LPAREN : Rexp = "{"
+val RPAREN : Rexp = "}"
+val PAREN : Rexp = RANGE("({)}")
 val SEMI : Rexp = ";"
 val STRING : Rexp = "\"" ~ (SYM | WHITESPACE | DIGIT).% ~ "\""
-val ID : Repx = LETTER ~ ("_" | LETTER | DIGIT).% 
-val NUM = ALT(CHAR("0"), SEQ(RANGE("123456789"), STAR(DIGIT)))
+val ID : Rexp = LETTER ~ ("_" | LETTER | DIGIT).% 
+val NUM = ALT(CHAR('0'), SEQ(RANGE("123456789"), STAR(DIGIT)))
 val COMMENT : Rexp= "//" ~ (SYM | " " | DIGIT).% ~ "\n"
 
 
@@ -223,7 +221,8 @@ val WHILE_REGS = (("k" $ KEYWORD) |
                   ("n" $ NUM) | 
                   ("s" $ SEMI) | 
                   ("str" $ STRING) |
-                  ("p" $ (LPAREN | RPAREN)) | 
+                  ("p" $ PAREN) | 
+                  // ("p" $ (LPAREN | RPAREN)) | 
                   ("w" $ WHITESPACE)).%
 
 
