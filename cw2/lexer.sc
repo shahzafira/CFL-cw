@@ -21,6 +21,15 @@ case class SEQ(r1: Rexp, r2: Rexp) extends Rexp
 case class STAR(r: Rexp) extends Rexp 
 case class RECD(x: String, r: Rexp) extends Rexp  
                 // records for extracting strings or tokens
+case class NTIMES(r: Rexp, n: Int) extends Rexp 
+case class RANGE(ls: Set[Char]) extends Rexp
+case class PLUS(r: Rexp) extends Rexp
+case class OPTIONAL(r: Rexp) extends Rexp
+case class UPTO(r: Rexp, m: Int) extends Rexp
+case class FROM(r: Rexp, n: Int) extends Rexp
+case class BETWEEN(r: Rexp, n: Int, m: Int) extends Rexp
+case class NOT(r: Rexp) extends Rexp
+case class CFUN(f: Char => Boolean) extends Rexp
   
 // values  
 abstract class Val
@@ -65,6 +74,15 @@ def nullable(r: Rexp) : Boolean = r match {
   case SEQ(r1, r2) => nullable(r1) && nullable(r2)
   case STAR(_) => true
   case RECD(_, r1) => nullable(r1)
+  case NTIMES(r, i) => if (i == 0) true else nullable(r)
+  case RANGE(r) => false
+  case PLUS(r) => nullable(r)
+  case OPTIONAL(r) => true
+  case UPTO(r, m) => true
+  case FROM(r, n) => if (n == 0) true else nullable(r)
+  case BETWEEN(r, n, m) => if (n == 0) true else nullable(r)
+  case NOT(r) => !nullable(r)
+  case CFUN(f) => false
 }
 
 def der(c: Char, r: Rexp) : Rexp = r match {
@@ -77,7 +95,27 @@ def der(c: Char, r: Rexp) : Rexp = r match {
     else SEQ(der(c, r1), r2)
   case STAR(r) => SEQ(der(c, r), STAR(r))
   case RECD(_, r1) => der(c, r1)
+  case NTIMES(r, i) => 
+    if (i == 0) ZERO else SEQ(der(c, r), NTIMES(r, i - 1))
+  case RANGE(ls) => if (ls.contains(c)) ONE else ZERO
+  case PLUS(r) => SEQ(der(c, r), STAR(r))
+  case OPTIONAL(r) => der(c, r)
+  case UPTO(r, i) =>
+    if (i == 0) ZERO else SEQ(der(c, r), UPTO(r, i - 1))
+  case FROM(r, i) =>
+    if (i == 0) SEQ(der(c, r), STAR(r))
+    else SEQ(der(c, r), FROM(r, i - 1))
+  case BETWEEN(r, i, j) =>
+    if (j == 0) ZERO
+    else if (i == 0) SEQ(der(c, r), UPTO(r, j - 1))
+    else SEQ(der(c, r), BETWEEN(r, i - 1, j - 1))
+  case NOT(r) => NOT(der(c, r))
+  case CFUN(f) => if (f(c)) ONE else ZERO
 }
+
+def CHAR2(c: Char) = CFUN(_ == c)
+def RANGE2(cs: Set[Char]) = CFUN(cs.contains(_))
+val ALL = CFUN(_ => true)
 
 
 // extracts a string from a value
@@ -212,7 +250,7 @@ val SEMI : Rexp = ";"
 val STRING : Rexp = "\"" ~ (SYM | WHITESPACE | DIGIT).% ~ "\""
 val ID : Rexp = LETTER ~ ("_" | LETTER | DIGIT).% 
 val NUM = ALT(CHAR('0'), SEQ(RANGE("123456789"), STAR(DIGIT)))
-val COMMENT : Rexp= "//" ~ (SYM | " " | DIGIT).% ~ "\n"
+val COMMENT : Rexp = "//" ~ (SYM | " " | DIGIT).% ~ "\n"
 
 
 val WHILE_REGS = (("k" $ KEYWORD) | 
