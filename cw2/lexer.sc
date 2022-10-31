@@ -197,17 +197,24 @@ def Range(s : List[Char]) : Rexp = s match {
 }
 def RANGE(s: String) = Range(s.toList)
 
-val SYM = RANGE("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_")
+// Question 1
+val KEYWORD : Rexp = "skip" | "while" | "do" | "if" | "then" | "else" | "read" | "write" | "for" | "to" | "true" | "false" 
+val OP : Rexp = ":=" | "=" | "-" | "+" | "*" | "!=" | "<" | ">" | "%" | "/" | "==" | "<=" | ">=" | "&&" | "||"
+val LETTER = RANGE("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
+val SYM = RANGE("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz._><=;,\\:")
 val DIGIT = RANGE("0123456789")
-val ID = SYM ~ (SYM | DIGIT).% 
-val NUM = PLUS(DIGIT)
-val KEYWORD : Rexp = "skip" | "while" | "do" | "if" | "then" | "else" | "read" | "write" 
-val SEMI: Rexp = ";"
-val OP: Rexp = ":=" | "=" | "-" | "+" | "*" | "!=" | "<" | ">"
 val WHITESPACE = PLUS(" " | "\n" | "\t" | "\r")
-val RPAREN: Rexp = "{"
-val LPAREN: Rexp = "}"
-val STRING: Rexp = "\"" ~ SYM.% ~ "\""
+// gotta add the other brackets, but how?
+// val PAREN : Rexp = RANGE("({)}")
+val RBRACE : Rexp = "{"
+val LBRACE : Rexp = "}"
+val RPAREN : Rexp = "("
+val LPARENT : Rexp = ")"
+val SEMI : Rexp = ";"
+val STRING : Rexp = "\"" ~ (SYM | WHITESPACE | DIGIT).% ~ "\""
+val ID : Repx = LETTER ~ ("_" | LETTER | DIGIT).% 
+val NUM = ALT(CHAR("0"), SEQ(RANGE("123456789"), STAR(DIGIT)))
+val COMMENT : Rexp= "//" ~ (SYM | " " | DIGIT).% ~ "\n"
 
 
 val WHILE_REGS = (("k" $ KEYWORD) | 
