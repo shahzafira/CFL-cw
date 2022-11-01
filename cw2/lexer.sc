@@ -146,6 +146,8 @@ def env(v: Val) : List[(String, String)] = v match {
 // The injection and mkeps part of the lexer
 //===========================================
 
+// Question 2
+
 def mkeps(r: Rexp) : Val = r match {
   case ONE => Empty
   case ALT(r1, r2) => 
@@ -153,6 +155,12 @@ def mkeps(r: Rexp) : Val = r match {
   case SEQ(r1, r2) => Sequ(mkeps(r1), mkeps(r2))
   case STAR(r) => Stars(Nil)
   case RECD(x, r) => Rec(x, mkeps(r))
+  // range cannot match the empty string
+  // case RANGE(r) => 
+  case PLUS(r) => Sequ(mkeps(r), Stars(Nil))
+  case OPTIONAL(r) => Empty
+  case NTIMES(r) => if (n == 0) Empty
+    else Stars(Nil) 
 }
 
 def inj(r: Rexp, c: Char, v: Val) : Val = (r, v) match {
