@@ -40,6 +40,9 @@ case class Left(v: Val) extends Val
 case class Right(v: Val) extends Val
 case class Stars(vs: List[Val]) extends Val
 case class Rec(x: String, v: Val) extends Val
+case class Plus(vs: List[Val]) extends Val
+case class Opt(v: Val) extends Val
+case class Ntimes(vs: List[Val]) extends Val
    
 // some convenience for typing in regular expressions
 
@@ -127,6 +130,9 @@ def flatten(v: Val) : String = v match {
   case Sequ(v1, v2) => flatten(v1) ++ flatten(v2)
   case Stars(vs) => vs.map(flatten).mkString
   case Rec(_, v) => flatten(v)
+  case Plus(vs) => vs.map(flatten).mkString
+  case Opt(v) => flatten(v)
+  case Ntimes(vs) => vs.map(flatten).mkString
 }
 
 
@@ -140,6 +146,9 @@ def env(v: Val) : List[(String, String)] = v match {
   case Sequ(v1, v2) => env(v1) ::: env(v2)
   case Stars(vs) => vs.flatMap(env)
   case Rec(x, v) => (x, flatten(v))::env(v)
+  case Plus(vs) => vs.flatMap(env)
+  case Opt(v) => env(v)
+  case Ntimes(vs) => vs.flatMap(env)
 }
 
 
@@ -157,9 +166,10 @@ def mkeps(r: Rexp) : Val = r match {
   case RECD(x, r) => Rec(x, mkeps(r))
   // range cannot match the empty string
   // case RANGE(r) => 
-  case PLUS(r) => Sequ(mkeps(r), Stars(Nil))
+  case PLUS(r) => Sequ(mkeps(r), Plus(Nil))
   case OPTIONAL(r) => Empty
-  case NTIMES(r, i) => if (i == 0) Empty else Stars(Nil) 
+  // case NTIMES(r, i) => if (i == 0) Empty else Stars(List(mkeps(r))) 
+  case NTIMES(r, i) => if (i == 0) Ntimes(Nil) else Ntimes(List(mkeps(r)))
 }
 
 def inj(r: Rexp, c: Char, v: Val) : Val = (r, v) match {
@@ -172,10 +182,10 @@ def inj(r: Rexp, c: Char, v: Val) : Val = (r, v) match {
   case (CHAR(d), Empty) => Chr(c) 
   case (RECD(x, r1), _) => Rec(x, inj(r1, c, v))
   case (RANGE(ls), Empty) => Chr(c)
-  case (PLUS(r), Sequ(v, Stars(vs))) => Stars(inj(r, c, v)::vs)
-  // case (PLUS(r), Sequ(v, Stars(vs))) => Sequ(inj(r, c, v), vs)  
-  case (OPTIONAL(r), Empty) => inj(r, c, v)
-  case (NTIMES(r, i), Sequ(v, Stars(vs))) => Stars(inj(r, c, v)::vs)
+  case (PLUS(r), Sequ(v, Stars(vs))) => Plus(inj(r, c, v)::vs)  
+  case (OPTIONAL(r), Empty) => Opt(inj(r, c, v))
+  // case (NTIMES(r, 0), _) => Empty 
+  case (NTIMES(r, i), Sequ(v, Ntimes(vs))) => Ntimes(inj(r, c, v)::vs)
 
 }
 
@@ -276,6 +286,25 @@ val WHILE_REGS = (("k" $ KEYWORD) |
                   // ("p" $ (LPAREN | RPAREN)) | 
                   ("w" $ WHITESPACE)).%
 
+
+// Question 2 tests
+
+@arg(doc = "test inj for extended regular expressions")
+@main
+def testinj() = {
+  println("rexp: a*\n string: aa")
+  println(lex_simp(STAR(CHAR('a')), "aa".toList))
+
+  println("rexp: a + b\n string: a")
+  println(lex_simp(ALT(CHAR('a'), CHAR('b')), "a".toList))
+
+  println("rexp: a{3}\n string: aaa")
+  println(lex_simp(NTIMES(CHAR('a'), 3), "aaa".toList))
+
+  println("rexp: (a + 1){3}\n string: aa")
+  println(lex_simp(NTIMES(ALT(CHAR('a'), ONE), 3), "aa".toList))
+  
+}
 
 // Two Simple While Tests
 //========================
