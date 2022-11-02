@@ -265,10 +265,11 @@ val LETTER = RANGE("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
 val SYM = RANGE("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz._><=;,\\:")
 val DIGIT = RANGE("0123456789")
 val WHITESPACE = PLUS(" " | "\n" | "\t" | "\r")
-// gotta add the other brackets, but how?
-val LPAREN : Rexp = "{"
-val RPAREN : Rexp = "}"
-val PAREN : Rexp = RANGE("({)}")
+// curly brackets: {}, round brackets: ()
+val LCURLY : Rexp = "{"
+val RCURLY : Rexp = "}"
+val LROUND : Rexp = "("
+val RROUND : Rexp = ")"
 val SEMI : Rexp = ";"
 val STRING : Rexp = "\"" ~ (SYM | WHITESPACE | DIGIT).% ~ "\""
 val ID : Rexp = LETTER ~ ("_" | LETTER | DIGIT).% 
@@ -282,9 +283,14 @@ val WHILE_REGS = (("k" $ KEYWORD) |
                   ("n" $ NUM) | 
                   ("s" $ SEMI) | 
                   ("str" $ STRING) |
-                  ("p" $ PAREN) | 
-                  // ("p" $ (LPAREN | RPAREN)) | 
-                  ("w" $ WHITESPACE)).%
+                  ("cu" $ LCURLY | RCURLY) |
+                  ("r" $ LROUND | RROUND) |
+                  ("w" $ WHITESPACE) |
+                  ("l" $ LETTER) |
+                  ("sy" $ SYM) |
+                  ("str" $ STRING) |
+                  ("c" $ COMMENT)).%
+
 
 
 // Question 2 tests
@@ -348,6 +354,7 @@ while n > 0 do {
 };
 write "Result";
 write minus2
+// some comment
 """
 
 @arg(doc = "Fibonacci test")
