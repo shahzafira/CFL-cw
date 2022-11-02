@@ -159,8 +159,7 @@ def mkeps(r: Rexp) : Val = r match {
   // case RANGE(r) => 
   case PLUS(r) => Sequ(mkeps(r), Stars(Nil))
   case OPTIONAL(r) => Empty
-  case NTIMES(r) => if (n == 0) Empty
-    else Stars(Nil) 
+  case NTIMES(r, i) => if (i == 0) Empty else Stars(Nil) 
 }
 
 def inj(r: Rexp, c: Char, v: Val) : Val = (r, v) match {
@@ -173,10 +172,10 @@ def inj(r: Rexp, c: Char, v: Val) : Val = (r, v) match {
   case (CHAR(d), Empty) => Chr(c) 
   case (RECD(x, r1), _) => Rec(x, inj(r1, c, v))
   case (RANGE(ls), Empty) => Chr(c)
-  // case (PLUS(r), Sequ(v, Stars(vs))) => Stars(inj(r, c, v)::vs)
-  case (PLUS(r), Sequ(v, Stars(vs))) => Sequ(inj(r, c, v), vs)  
+  case (PLUS(r), Sequ(v, Stars(vs))) => Stars(inj(r, c, v)::vs)
+  // case (PLUS(r), Sequ(v, Stars(vs))) => Sequ(inj(r, c, v), vs)  
   case (OPTIONAL(r), Empty) => inj(r, c, v)
-  case (NTIMES(r), Sequ(v, Stars(vs))) => Stars(inj(r, c, v1)::vs)
+  case (NTIMES(r, i), Sequ(v, Stars(vs))) => Stars(inj(r, c, v)::vs)
 
 }
 
