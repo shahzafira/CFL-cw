@@ -172,6 +172,12 @@ def inj(r: Rexp, c: Char, v: Val) : Val = (r, v) match {
   case (ALT(r1, r2), Right(v2)) => Right(inj(r2, c, v2))
   case (CHAR(d), Empty) => Chr(c) 
   case (RECD(x, r1), _) => Rec(x, inj(r1, c, v))
+  case (RANGE(ls), Empty) => Chr(c)
+  // case (PLUS(r), Sequ(v, Stars(vs))) => Stars(inj(r, c, v)::vs)
+  case (PLUS(r), Sequ(v, Stars(vs))) => Sequ(inj(r, c, v), vs)  
+  case (OPTIONAL(r), Empty) => inj(r, c, v)
+  case (NTIMES(r), Sequ(v, Stars(vs))) => Stars(inj(r, c, v1)::vs)
+
 }
 
 // some "rectification" functions for simplification
