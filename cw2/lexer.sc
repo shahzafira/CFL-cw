@@ -294,6 +294,40 @@ val WHILE_REGS = (("k" $ KEYWORD) |
 
 def filter_white_space(tokens: List[(String, String)]) = tokens.filter(_._1 != "w")
 
+// Question 3 tokenise programs
+
+@arg(doc = "Tokenise fib.while program")
+@main
+def t_fib() = {
+  val prog = scala.io.Source.fromFile("fib.while").getLines.mkString
+  println("Tokenise fib.while, filtering whitespaces\n")
+  println(filter_white_space(lexing_simp(WHILE_REGS, prog)))
+}
+
+@arg(doc = "Tokenise loops.while program")
+@main
+def t_loops() = {
+  val prog = scala.io.Source.fromFile("loops.while").getLines.mkString
+  println("Tokenise loops.while, filtering whitespaces\n")
+  println(filter_white_space(lexing_simp(WHILE_REGS, prog)))
+}
+
+@arg(doc = "Tokenise factors.while program")
+@main
+def t_factors() = {
+  val prog = scala.io.Source.fromFile("factors.while").getLines.mkString
+  println("Tokenise factors.while, filtering whitespaces\n")
+  println(filter_white_space(lexing_simp(WHILE_REGS, prog)))
+}
+
+@arg(doc = "Tokenise collatz2.while program")
+@main
+def t_collatz() = {
+  val prog = scala.io.Source.fromFile("collatz2.while").getLines.mkString
+  println("Tokenise collatz2.while, filtering whitespaces\n")
+  println(filter_white_space(lexing_simp(WHILE_REGS, prog)))
+}
+
 // Question 2 tests
 
 @arg(doc = "test inj for extended regular expressions")
