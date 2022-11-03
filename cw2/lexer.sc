@@ -296,36 +296,37 @@ def filter_white_space(tokens: List[(String, String)]) = tokens.filter(_._1 != "
 
 // Question 3 tokenise programs
 
+// need to add \n to the end of new line or comments cannot be recognised
 @arg(doc = "Tokenise fib.while program")
 @main
 def t_fib() = {
-  val prog = scala.io.Source.fromFile("fib.while").getLines.mkString
+  val prog = scala.io.Source.fromFile("fib.while").getLines.mkString("\n")
   println("Tokenise fib.while, filtering whitespaces\n")
-  println(filter_white_space(lexing_simp(WHILE_REGS, prog)))
+  println(escape(filter_white_space(lexing_simp(WHILE_REGS, prog))))
 }
 
 @arg(doc = "Tokenise loops.while program")
 @main
 def t_loops() = {
-  val prog = scala.io.Source.fromFile("loops.while").getLines.mkString
+  val prog = scala.io.Source.fromFile("loops.while").getLines.mkString("\n")
   println("Tokenise loops.while, filtering whitespaces\n")
-  println(filter_white_space(lexing_simp(WHILE_REGS, prog)))
+  println(escape(filter_white_space(lexing_simp(WHILE_REGS, prog))))
 }
 
 @arg(doc = "Tokenise factors.while program")
 @main
 def t_factors() = {
-  val prog = scala.io.Source.fromFile("factors.while").getLines.mkString
+  val prog = scala.io.Source.fromFile("factors.while").getLines.mkString("\n")
   println("Tokenise factors.while, filtering whitespaces\n")
-  println(filter_white_space(lexing_simp(WHILE_REGS, prog)))
+  println(escape(filter_white_space(lexing_simp(WHILE_REGS, prog))))
 }
 
 @arg(doc = "Tokenise collatz2.while program")
 @main
 def t_collatz() = {
-  val prog = scala.io.Source.fromFile("collatz2.while").getLines.mkString
+  val prog = scala.io.Source.fromFile("collatz2.while").getLines.mkString("\n")
   println("Tokenise collatz2.while, filtering whitespaces\n")
-  println(filter_white_space(lexing_simp(WHILE_REGS, prog)))
+  println(escape(filter_white_space(lexing_simp(WHILE_REGS, prog))))
 }
 
 // Question 2 tests
@@ -451,8 +452,8 @@ def all() = { small(); fib() ; loops() ; email() }
 
 
 
-
 // runs with amm2 and amm3
+
 
 
 
