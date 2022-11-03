@@ -292,6 +292,7 @@ val WHILE_REGS = (("k" $ KEYWORD) |
                   ("c" $ COMMENT)).%
 
 
+def filter_white_space(tokens: List[(String, String)]) = tokens.filter(_._1 != "w")
 
 // Question 2 tests
 
