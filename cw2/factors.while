@@ -1,0 +1,14 @@
+// Find all factors of a given input number
+
+
+write "Input n please";
+read n;
+write "The factors of n are";
+f := 2;
+while (f < n / 2 + 1) do {
+  if ((n / f) * f == n)
+  then { write(f); write("\n") }
+  else { skip };
+  f := f + 1
+}
+
