@@ -167,10 +167,8 @@ def mkeps(r: Rexp) : Val = r match {
   case STAR(r) => Stars(Nil)
   case RECD(x, r) => Rec(x, mkeps(r))
   // range cannot match the empty string
-  // case RANGE(r) => 
   case PLUS(r) => Sequ(mkeps(r), Plus(Nil))
   case OPTIONAL(r) => Empty
-  // case NTIMES(r, i) => if (i == 0) Empty else Stars(List(mkeps(r))) 
   case NTIMES(r, i) => if (i == 0) Ntimes(Nil) else Ntimes(List(mkeps(r)))
 }
 
