@@ -288,7 +288,6 @@ val WHILE_REGS = (("k" $ KEYWORD) |
                   ("w" $ WHITESPACE) |
                   ("l" $ LETTER) |
                   ("sy" $ SYM) |
-                  ("str" $ STRING) |
                   ("c" $ COMMENT)).%
 
 
