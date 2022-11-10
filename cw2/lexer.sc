@@ -10,6 +10,8 @@
 //
 //   amm lexer.sc all
 
+// Zafira Shah k19008701
+
 
 // regular expressions including records
 abstract class Rexp 
