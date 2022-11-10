@@ -351,6 +351,15 @@ def testinj() = {
 
   println("rexp: (a + 1){3}\n string: aa")
   println(lex_simp(NTIMES(ALT(CHAR('a'), ONE), 3), "aa".toList))
+
+  println("rexp: a+\n string: aaaaa")
+  println(lex_simp(PLUS(CHAR('a')), "aaaaa".toList))
+
+  println("rexp: a?\n string: ")
+  println(lex_simp(OPTIONAL(CHAR('a')), "".toList))
+
+  println("rexp: a?\n string: a")
+  println(lex_simp(OPTIONAL(CHAR('a')), "a".toList))
   
 }
 
