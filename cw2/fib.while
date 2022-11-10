@@ -8,7 +8,7 @@ while n > 0 do {
        minus1 := temp;
        n := n - 1
 };
-write "Result";
-write minus2 
+write "Result: ";
+write minus2 ;
 write "\n"
 
