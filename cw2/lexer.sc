@@ -184,7 +184,6 @@ def inj(r: Rexp, c: Char, v: Val) : Val = (r, v) match {
   case (RANGE(ls), Empty) => Chr(c)
   case (PLUS(r), Sequ(v, Plus(vs))) => Plus(inj(r, c, v)::vs)  
   case (OPTIONAL(r), Empty) => Opt(inj(r, c, v))
-  // case (NTIMES(r, 0), _) => Empty 
   case (NTIMES(r, i), Sequ(v, Ntimes(vs))) => Ntimes(inj(r, c, v)::vs)
 
 }
