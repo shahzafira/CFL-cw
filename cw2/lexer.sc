@@ -290,6 +290,14 @@ val WHILE_REGS = (("k" $ KEYWORD) |
                   ("sy" $ SYM) |
                   ("c" $ COMMENT)).%
 
+// escapes strings and prints them out as "", "\n" and so on
+def esc(raw: String): String = {
+  import scala.reflect.runtime.universe._
+  Literal(Constant(raw)).toString
+}
+
+def escape(tks: List[(String, String)]) =
+  tks.map{ case (s1, s2) => (s1, esc(s2))}
 
 def filter_white_space(tokens: List[(String, String)]) = tokens.filter(_._1 != "w")
 
@@ -365,15 +373,6 @@ def small() = {
 
 // Bigger Tests
 //==============
-
-// escapes strings and prints them out as "", "\n" and so on
-def esc(raw: String): String = {
-  import scala.reflect.runtime.universe._
-  Literal(Constant(raw)).toString
-}
-
-def escape(tks: List[(String, String)]) =
-  tks.map{ case (s1, s2) => (s1, esc(s2))}
 
 
 val prog2 = """
