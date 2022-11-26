@@ -15,6 +15,15 @@
 // case x ~ y ~ z => ...
 
 
+// to do:
+// check to see if read (the user input method works)
+// may be other ways to take input through the terminal (or just user input)
+
+// add to grammar other ways commands can be read
+// doesn't always need he brackets
+
+// 
+
 
 case class ~[+A, +B](x: A, y: B)
 
@@ -140,7 +149,6 @@ lazy val Fa: Parser[String, AExp] =
    IdParser.map(Var) || 
    NumParser.map(Num)
 
-// check the Bop(<= and >= as i think these can be simplified to what we already have)
 // boolean expressions with some simple nesting
 lazy val BExp: Parser[String, BExp] = 
    (AExp ~ p"==" ~ AExp).map[BExp]{ case x ~ _ ~ z => Bop("==", x, z) } || 
@@ -210,6 +218,7 @@ def eval_aexp(a: AExp, env: Env) : Int = a match {
   case Aop("-", a1, a2) => eval_aexp(a1, env) - eval_aexp(a2, env)
   case Aop("*", a1, a2) => eval_aexp(a1, env) * eval_aexp(a2, env)
   case Aop("/", a1, a2) => eval_aexp(a1, env) / eval_aexp(a2, env)
+  case Aop("%", a1, a2) => eval_aexp(a1, env) % eval_aexp(a2, env)
 }
 
 def eval_bexp(b: BExp, env: Env) : Boolean = b match {
