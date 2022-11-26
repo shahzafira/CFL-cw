@@ -114,6 +114,7 @@ case class If(a: BExp, bl1: Block, bl2: Block) extends Stmt
 case class While(b: BExp, bl: Block) extends Stmt
 case class Assign(s: String, a: AExp) extends Stmt
 case class Write(s: String) extends Stmt
+case class Read(sL String) extends Stmt
 
 case class Var(s: String) extends AExp
 case class Num(i: Int) extends AExp
@@ -132,18 +133,24 @@ lazy val AExp: Parser[String, AExp] =
   (Te ~ p"-" ~ AExp).map[AExp]{ case x ~ _ ~ z => Aop("-", x, z) } || Te
 lazy val Te: Parser[String, AExp] = 
   (Fa ~ p"*" ~ Te).map[AExp]{ case x ~ _ ~ z => Aop("*", x, z) } || 
-  (Fa ~ p"/" ~ Te).map[AExp]{ case x ~ _ ~ z => Aop("/", x, z) } || Fa  
+  (Fa ~ p"/" ~ Te).map[AExp]{ case x ~ _ ~ z => Aop("/", x, z) } || 
+  (Fa ~ p"%" ~ Te).map[AExp]{ case x ~ _ ~ z => Aop("%", x, z) } || Fa  
 lazy val Fa: Parser[String, AExp] = 
    (p"(" ~ AExp ~ p")").map{ case _ ~ y ~ _ => y } || 
    IdParser.map(Var) || 
    NumParser.map(Num)
 
+// check the Bop(<= and >= as i think these can be simplified to what we already have)
 // boolean expressions with some simple nesting
 lazy val BExp: Parser[String, BExp] = 
    (AExp ~ p"==" ~ AExp).map[BExp]{ case x ~ _ ~ z => Bop("==", x, z) } || 
    (AExp ~ p"!=" ~ AExp).map[BExp]{ case x ~ _ ~ z => Bop("!=", x, z) } || 
    (AExp ~ p"<" ~ AExp).map[BExp]{ case x ~ _ ~ z => Bop("<", x, z) } || 
    (AExp ~ p">" ~ AExp).map[BExp]{ case x ~ _ ~ z => Bop(">", x, z) } ||
+   (AExp ~ p"<=" ~ AExp).map[BExp]{ case x ~ _ ~ z => Bop("<=", x, z) } || 
+   (AExp ~ p">=" ~ AExp).map[BExp]{ case x ~ _ ~ z => Bop(">=", x, z) } ||
+   (AExp ~ p"&&" ~ AExp).map[BExp]{ case x ~ _ ~ z => And("&&", x, z) } || 
+   (AExp ~ p"||" ~ AExp).map[BExp]{ case x ~ _ ~ z => Or("||", x, z) } ||
    (p"(" ~ BExp ~ p")" ~ p"&&" ~ BExp).map[BExp]{ case _ ~ y ~ _ ~ _ ~ v => And(y, v) } ||
    (p"(" ~ BExp ~ p")" ~ p"||" ~ BExp).map[BExp]{ case _ ~ y ~ _ ~ _ ~ v => Or(y, v) } ||
    (p"true".map[BExp]{ _ => True }) || 
@@ -155,6 +162,7 @@ lazy val Stmt: Parser[String, Stmt] =
   ((p"skip".map[Stmt]{_ => Skip }) ||
    (IdParser ~ p":=" ~ AExp).map[Stmt]{ case x ~ _ ~ z => Assign(x, z) } ||
    (p"write(" ~ IdParser ~ p")").map[Stmt]{ case _ ~ y ~ _ => Write(y) } ||
+   (p"read(" ~ IdParser ~ p")").map[Stmt]{ case _ ~ _ ~ z => Read(z) }
    (p"if" ~ BExp ~ p"then" ~ Block ~ p"else" ~ Block)
      .map[Stmt]{ case _ ~ y ~ _ ~ u ~ _ ~ w => If(y, u, w) } ||
    (p"while" ~ BExp ~ p"do" ~ Block).map[Stmt]{ case _ ~ y ~ _ ~ w => While(y, w) })   
@@ -211,6 +219,8 @@ def eval_bexp(b: BExp, env: Env) : Boolean = b match {
   case Bop("!=", a1, a2) => !(eval_aexp(a1, env) == eval_aexp(a2, env))
   case Bop(">", a1, a2) => eval_aexp(a1, env) > eval_aexp(a2, env)
   case Bop("<", a1, a2) => eval_aexp(a1, env) < eval_aexp(a2, env)
+  case Bop(">=", a1, a2) => eval_aexp(a1, env) >= eval_aexp(a2, env)
+  case Bop("<=", a1, a2) => eval_aexp(a1, env) <= eval_aexp(a2, env)
   case And(b1, b2) => eval_bexp(b1, env) && eval_bexp(b2, env)
   case Or(b1, b2) => eval_bexp(b1, env) || eval_bexp(b2, env)
 }
@@ -222,7 +232,9 @@ def eval_stmt(s: Stmt, env: Env) : Env = s match {
   case While(b, bl) => 
     if (eval_bexp(b, env)) eval_stmt(While(b, bl), eval_bl(bl, env))
     else env
-  case Write(x) => { println(env(x)) ; env }  
+  case Write(x) => { println(env(x)) ; env }
+  case Read(x) => env + (x -> scala.io.StdIn.readInt)
+  // try also Console.in.readLine().toInt
 }
 
 def eval_bl(bl: Block, env: Env) : Env = bl match {
