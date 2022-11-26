@@ -64,17 +64,17 @@ class MapParser[I : IsSeq, T, S](p: => Parser[I, T],
 
 
 // atomic parser for (particular) strings
-case class StrParser(s: String) extends Parser[String, String] {
-  def parse(sb: String) = {
+case class StrParser(s: String) extends Parser[Tokens, String] {
+  def parse(sb: Tokens) = {
     val (prefix, suffix) = sb.splitAt(s.length)
     if (prefix == s) Set((prefix, suffix)) else Set()
   }
 }
 
 // atomic parser for identifiers (variable names)
-case object IdParser extends Parser[String, String] {
+case object IdParser extends Parser[Tokens, String] {
   val reg = "[a-z][a-z,0-9]*".r
-  def parse(sb: String) = reg.findPrefixOf(sb) match {
+  def parse(sb: Tokens) = reg.findPrefixOf(sb) match {
     case None => Set()
     case Some(s) => Set(sb.splitAt(s.length))
   }
@@ -82,9 +82,9 @@ case object IdParser extends Parser[String, String] {
 
 
 // atomic parser for numbers (transformed into ints)
-case object NumParser extends Parser[String, Int] {
+case object NumParser extends Parser[Tokens, Int] {
   val reg = "[0-9]+".r
-  def parse(sb: String) = reg.findPrefixOf(sb) match {
+  def parse(sb: Tokens) = reg.findPrefixOf(sb) match {
     case None => Set()
     case Some(s) => {
       val (hd, tl) = sb.splitAt(s.length)
@@ -117,6 +117,8 @@ abstract class AExp
 abstract class BExp 
 
 type Block = List[Stmt]
+type Tokens = List[Token]
+// use List(String, String) if you cannot get it to work with the lexer
 
 case object Skip extends Stmt
 case class If(a: BExp, bl1: Block, bl2: Block) extends Stmt
@@ -137,20 +139,20 @@ case class Or(b1: BExp, b2: BExp) extends BExp
 
 
 // arithmetic expressions
-lazy val AExp: Parser[String, AExp] = 
+lazy val AExp: Parser[Tokens, AExp] = 
   (Te ~ p"+" ~ AExp).map[AExp]{ case x ~ _ ~ z => Aop("+", x, z) } ||
   (Te ~ p"-" ~ AExp).map[AExp]{ case x ~ _ ~ z => Aop("-", x, z) } || Te
-lazy val Te: Parser[String, AExp] = 
+lazy val Te: Parser[Tokens, AExp] = 
   (Fa ~ p"*" ~ Te).map[AExp]{ case x ~ _ ~ z => Aop("*", x, z) } || 
   (Fa ~ p"/" ~ Te).map[AExp]{ case x ~ _ ~ z => Aop("/", x, z) } || 
   (Fa ~ p"%" ~ Te).map[AExp]{ case x ~ _ ~ z => Aop("%", x, z) } || Fa  
-lazy val Fa: Parser[String, AExp] = 
+lazy val Fa: Parser[Tokens, AExp] = 
    (p"(" ~ AExp ~ p")").map{ case _ ~ y ~ _ => y } || 
    IdParser.map(Var) || 
    NumParser.map(Num)
 
 // boolean expressions with some simple nesting
-lazy val BExp: Parser[String, BExp] = 
+lazy val BExp: Parser[Tokens, BExp] = 
    (AExp ~ p"==" ~ AExp).map[BExp]{ case x ~ _ ~ z => Bop("==", x, z) } || 
    (AExp ~ p"!=" ~ AExp).map[BExp]{ case x ~ _ ~ z => Bop("!=", x, z) } || 
    (AExp ~ p"<" ~ AExp).map[BExp]{ case x ~ _ ~ z => Bop("<", x, z) } || 
@@ -166,7 +168,7 @@ lazy val BExp: Parser[String, BExp] =
    (p"(" ~ BExp ~ p")").map[BExp]{ case _ ~ x ~ _ => x }
 
 // a single statement 
-lazy val Stmt: Parser[String, Stmt] =
+lazy val Stmt: Parser[Tokens, Stmt] =
   ((p"skip".map[Stmt]{_ => Skip }) ||
    (IdParser ~ p":=" ~ AExp).map[Stmt]{ case x ~ _ ~ z => Assign(x, z) } ||
    (p"write(" ~ IdParser ~ p")").map[Stmt]{ case _ ~ y ~ _ => Write(y) } ||
@@ -177,12 +179,12 @@ lazy val Stmt: Parser[String, Stmt] =
  
  
 // statements
-lazy val Stmts: Parser[String, Block] =
+lazy val Stmts: Parser[Tokens, Block] =
   (Stmt ~ p";" ~ Stmts).map[Block]{ case x ~ _ ~ z => x :: z } ||
   (Stmt.map[Block]{ s => List(s) })
 
 // blocks (enclosed in curly braces)
-lazy val Block: Parser[String, Block] =
+lazy val Block: Parser[Tokens, Block] =
   ((p"{" ~ Stmts ~ p"}").map{ case _ ~ y ~ _ => y } || 
    (Stmt.map(s => List(s))))
 
