@@ -175,7 +175,7 @@ lazy val Stmt: Parser[List[(String, String)], Stmt] =
    (TknParser("k", "write") ~ IdParser).map[Stmt]{ case _ ~ z => WriteVar(z) } ||
    (TknParser("k", "write") ~ TknParser("r", "(") ~ StrParser ~ TknParser("r", ")")).map[Stmt]{ case _ ~ _ ~ y ~ _ => WriteStr(y) } ||
    (TknParser("k", "write") ~ StrParser).map[Stmt]{ case _ ~ z => WriteStr(z) } ||
-   (TknParser("k", "read") ~ TknParser("r", "(") ~ IdParser ~ TknParser("r", "(")).map[Stmt]{ case _ ~ _ ~ y ~ _ => Read(y) } ||
+   (TknParser("k", "read") ~ TknParser("r", "(") ~ IdParser ~ TknParser("r", ")")).map[Stmt]{ case _ ~ _ ~ y ~ _ => Read(y) } ||
    (TknParser("k", "read") ~ IdParser).map[Stmt]{ case _ ~ z => Read(z) } ||
    (TknParser("k", "if") ~ BExp ~ TknParser("k", "then") ~ Block ~ TknParser("k", "else") ~ Block)
      .map[Stmt]{ case _ ~ y ~ _ ~ u ~ _ ~ w => If(y, u, w) } ||
@@ -309,6 +309,8 @@ val primes =
 
 // tests
 
+def time_elapsed(t0: Long, t1: Long) = { println("Elapsed time: " + (t1 - t0).toDouble/1000000000 + "s") }
+
 val q2_prog = "if(a<b)thenskipelsea:=a*b+1"
 
 @arg(doc = "Test from question 2")
@@ -327,7 +329,7 @@ def e_fib() = {
   val t0 = System.nanoTime()
   println(eval(Stmts.parse_all(filter_tokens(lexing_simp(WHILE_REGS, prog))).head))
   val t1 = System.nanoTime()
-  println("Elapsed time: " + (t1 - t0)/1000000 + "ms")
+  time_elapsed(t0, t1)
 }
 
 @arg(doc = "Evaluate loop.while program")
@@ -338,7 +340,7 @@ def e_loop() = {
   val t0 = System.nanoTime()
   println(eval(Stmts.parse_all(filter_tokens(lexing_simp(WHILE_REGS, prog))).head))
   val t1 = System.nanoTime()
-  println("Elapsed time: " + (t1 - t0)/1000000 + "ms")
+  time_elapsed(t0, t1)
 }
 
 @arg(doc = "Evaluate prime.while program")
@@ -349,7 +351,7 @@ def e_prime() = {
   val t0 = System.nanoTime()
   println(eval(Stmts.parse_all(filter_tokens(lexing_simp(WHILE_REGS, prog))).head))
   val t1 = System.nanoTime()
-  println("Elapsed time: " + (t1 - t0)/1000000 + "ms")
+  time_elapsed(t0, t1)
 }
 
 @arg(doc = "Evaluate collatz.while program")
@@ -360,7 +362,7 @@ def e_coll() = {
   val t0 = System.nanoTime()
   println(eval(Stmts.parse_all(filter_tokens(lexing_simp(WHILE_REGS, prog))).head))
   val t1 = System.nanoTime()
-  println("Elapsed time: " + (t1 - t0)/1000000 + "ms")
+  time_elapsed(t0, t1)
 }
 
 // runs with amm2 and amm3
