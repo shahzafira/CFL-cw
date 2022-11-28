@@ -22,7 +22,7 @@
 // add to grammar other ways commands can be read
 // doesn't always need he brackets
 
-// 
+// writevar and writestr
 
 
 case class ~[+A, +B](x: A, y: B)
@@ -125,7 +125,8 @@ case object Skip extends Stmt
 case class If(a: BExp, bl1: Block, bl2: Block) extends Stmt
 case class While(b: BExp, bl: Block) extends Stmt
 case class Assign(s: String, a: AExp) extends Stmt
-case class Write(s: String) extends Stmt
+case class WriteVar(s: String) extends Stmt
+case class WriteStr(s: String) extends Stmt
 case class Read(s: String) extends Stmt
 
 case class Var(s: String) extends AExp
@@ -135,8 +136,8 @@ case class Aop(o: String, a1: AExp, a2: AExp) extends AExp
 case object True extends BExp
 case object False extends BExp
 case class Bop(o: String, a1: AExp, a2: AExp) extends BExp
-case class And(b1: BExp, b2: BExp) extends BExp
-case class Or(b1: BExp, b2: BExp) extends BExp
+case class Lop(o: String, b1: BExp, b2: BExp) extends BExp
+
 
 
 // arithmetic expressions
@@ -154,15 +155,14 @@ lazy val Fa: Parser[List[(String, String)], AExp] =
 
 // boolean expressions with some simple nesting
 lazy val BExp: Parser[List[(String, String)], BExp] = 
+   (AExp ~ TknParser("o", "==") ~ AExp).map[BExp]{ case x ~ _ ~ z => Bop("==", x, z) } || 
    (AExp ~ TknParser("o", "!=") ~ AExp).map[BExp]{ case x ~ _ ~ z => Bop("!=", x, z) } || 
    (AExp ~ TknParser("o", "<") ~ AExp).map[BExp]{ case x ~ _ ~ z => Bop("<", x, z) } || 
    (AExp ~ TknParser("o", ">") ~ AExp).map[BExp]{ case x ~ _ ~ z => Bop(">", x, z) } ||
    (AExp ~ TknParser("o", "<=") ~ AExp).map[BExp]{ case x ~ _ ~ z => Bop("<=", x, z) } || 
    (AExp ~ TknParser("o", ">=") ~ AExp).map[BExp]{ case x ~ _ ~ z => Bop(">=", x, z) } ||
-  //  (BExp ~ TknParser("o", "&&") ~ BExp).map[BExp]{ case x ~ _ ~ z => And(x, z) } || 
-  //  (BExp ~ TknParser("o", "||") ~ BExp).map[BExp]{ case x ~ _ ~ z => Or(x, z) } ||
-   (TknParser("r", "(") ~ BExp ~ TknParser("r", ")") ~ TknParser("o", "&&") ~ BExp).map[BExp]{ case _ ~ y ~ _ ~ _ ~ v => And(y, v) } ||
-   (TknParser("r", "(") ~ BExp ~ TknParser("r", ")") ~ TknParser("o", "||") ~ BExp).map[BExp]{ case _ ~ y ~ _ ~ _ ~ v => Or(y, v) } ||
+   (TknParser("r", "(") ~ BExp ~ TknParser("r", ")") ~ TknParser("o", "&&") ~ BExp).map[BExp]{ case _ ~ y ~ _ ~ _ ~ v => Lop("&&", y, v) } ||
+   (TknParser("r", "(") ~ BExp ~ TknParser("r", ")") ~ TknParser("o", "||") ~ BExp).map[BExp]{ case _ ~ y ~ _ ~ _ ~ v => Lop("||", y, v) } ||
    (TknParser("k", "true").map[BExp]{ _ => True }) || 
    (TknParser("k", "false").map[BExp]{ _ => False }) ||
    (TknParser("r", "(") ~ BExp ~ TknParser("r", ")")).map[BExp]{ case _ ~ x ~ _ => x }
@@ -171,11 +171,15 @@ lazy val BExp: Parser[List[(String, String)], BExp] =
 lazy val Stmt: Parser[List[(String, String)], Stmt] =
   ((TknParser("k", "skip").map[Stmt]{_ => Skip }) ||
    (IdParser ~ TknParser("o", ":=") ~ AExp).map[Stmt]{ case x ~ _ ~ z => Assign(x, z) } ||
-   (TknParser("k", "write") ~ TknParser("r", "(") ~ IdParser ~ TknParser("r", ")")).map[Stmt]{ case _ ~ y ~ _ => Write(y) } ||
-   (TknParser("k", "read") ~ TknParser("r", "(") ~ IdParser ~ TknParser("r", "(")).map[Stmt]{ case _ ~ _ ~ z => Read(z) } ||
+   (TknParser("k", "write") ~ TknParser("r", "(") ~ IdParser ~ TknParser("r", ")")).map[Stmt]{ case _ ~ _ ~ y ~ _ => WriteVar(y) } ||
+   (TknParser("k", "write") ~ IdParser).map[Stmt]{ case _ ~ z => WriteVar(z) } ||
+   (TknParser("k", "write") ~ TknParser("r", "(") ~ StrParser ~ TknParser("r", ")")).map[Stmt]{ case _ ~ _ ~ y ~ _ => WriteStr(y) } ||
+   (TknParser("k", "write") ~ StrParser).map[Stmt]{ case _ ~ z => WriteStr(z) } ||
+   (TknParser("k", "read") ~ TknParser("r", "(") ~ IdParser ~ TknParser("r", "(")).map[Stmt]{ case _ ~ _ ~ y ~ _ => Read(y) } ||
+   (TknParser("k", "read") ~ IdParser).map[Stmt]{ case _ ~ z => Read(z) } ||
    (TknParser("k", "if") ~ BExp ~ TknParser("k", "then") ~ Block ~ TknParser("k", "else") ~ Block)
      .map[Stmt]{ case _ ~ y ~ _ ~ u ~ _ ~ w => If(y, u, w) } ||
-   (TknParser("k", "while") ~ BExp ~ TknParser("k", "do") ~ Block).map[Stmt]{ case _ ~ y ~ _ ~ w => While(y, w) })   
+   (TknParser("k", "while") ~ BExp ~  TknParser("k", "do") ~ Block).map[Stmt]{ case _ ~ y ~ _ ~ z => While(y, z) })   
  
  
 // statements
@@ -211,7 +215,7 @@ val fib = """n := 10;
              };
              result := minus2""".replaceAll("\\s+", "")
 
-// Stmts.parse_all(fib)
+// println(eval(Stmts.parse_all(filter_tokens(lexing_simp(WHILE_REGS, fib))).head))
 
 
 // an interpreter for the WHILE language
@@ -236,8 +240,8 @@ def eval_bexp(b: BExp, env: Env) : Boolean = b match {
   case Bop("<", a1, a2) => eval_aexp(a1, env) < eval_aexp(a2, env)
   case Bop(">=", a1, a2) => eval_aexp(a1, env) >= eval_aexp(a2, env)
   case Bop("<=", a1, a2) => eval_aexp(a1, env) <= eval_aexp(a2, env)
-  case And(b1, b2) => eval_bexp(b1, env) && eval_bexp(b2, env)
-  case Or(b1, b2) => eval_bexp(b1, env) || eval_bexp(b2, env)
+  case Lop("&&", b1, b2) => eval_bexp(b1, env) && eval_bexp(b2, env)
+  case Lop("||", b1, b2) => eval_bexp(b1, env) || eval_bexp(b2, env)
 }
 
 def eval_stmt(s: Stmt, env: Env) : Env = s match {
@@ -247,8 +251,9 @@ def eval_stmt(s: Stmt, env: Env) : Env = s match {
   case While(b, bl) => 
     if (eval_bexp(b, env)) eval_stmt(While(b, bl), eval_bl(bl, env))
     else env
-  case Write(x) => { println(env(x)) ; env }
-  case Read(x) => env + (x -> scala.io.StdIn.readInt)
+  case WriteVar(x) => { println(env(x)) ; env }
+  case WriteStr(x) => { println(x.stripPrefix("\"").stripSuffix("\"")) ; env }
+  case Read(x) => env + (x -> Console.in.readLine().toInt)
   // try also Console.in.readLine().toInt
 }
 
@@ -278,7 +283,7 @@ val factors =
         f := f + 1
       }""".replaceAll("\\s+", "")
 
-// println(eval(Stmts.parse_all(factors).head))
+// println(eval(Stmts.parse_all(filter_tokens(lexing_simp(WHILE_REGS, factors))).head))
 
 
 // calculate all prime numbers up to a number 
@@ -298,9 +303,20 @@ val primes =
         n  := n + 1
       }""".replaceAll("\\s+", "")
 
-// println(eval(Stmts.parse_all(primes).head))
+// println(eval(Stmts.parse_all(filter_tokens(lexing_simp(WHILE_REGS, primes))).head))
 
 
+
+// tests
+
+val q2_prog = "if(a<b)thenskipelsea:=a*b+1"
+
+@arg(doc = "Test from question 2")
+@main
+def q2() = {
+  println("if(a<b)thenskipelsea:=a*b+1")
+  Stmt.parse_all(filter_tokens(lexing_simp(WHILE_REGS, q2_prog)))
+}
 
 
 
