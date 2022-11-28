@@ -15,15 +15,6 @@
 // case x ~ y ~ z => ...
 
 
-// to do:
-// check to see if read (the user input method works)
-// may be other ways to take input through the terminal (or just user input)
-
-// add to grammar other ways commands can be read
-// doesn't always need he brackets
-
-// writevar and writestr
-
 
 case class ~[+A, +B](x: A, y: B)
 
@@ -311,12 +302,12 @@ val primes =
 
 def time_elapsed(t0: Long, t1: Long) = { println("Elapsed time: " + (t1 - t0).toDouble/1000000000 + "s") }
 
-val q2_prog = "if(a<b)thenskipelsea:=a*b+1"
+val q2_prog = "if (a < b) then skip else a := a * b + 1"
 
 @arg(doc = "Test from question 2")
 @main
 def q2() = {
-  println("if(a<b)thenskipelsea:=a*b+1")
+  println("if (a < b) then skip else a := a * b + 1")
   Stmt.parse_all(filter_tokens(lexing_simp(WHILE_REGS, q2_prog)))
 }
 
@@ -332,6 +323,7 @@ def e_fib() = {
   time_elapsed(t0, t1)
 }
 
+// just the time for evaluating a parse tree, not the time to lex the program
 @arg(doc = "Evaluate loop.while program")
 @main
 def e_loop() = {
@@ -339,6 +331,18 @@ def e_loop() = {
   println("Evaluate loop.while\n")
   val t0 = System.nanoTime()
   println(eval(Stmts.parse_all(filter_tokens(lexing_simp(WHILE_REGS, prog))).head))
+  val t1 = System.nanoTime()
+  time_elapsed(t0, t1)
+}
+
+@arg(doc = "Evaluate loop.while parse tree")
+@main
+def eval_loop() = {
+  val prog = scala.io.Source.fromFile("loop.while").getLines.mkString("\n")
+  println("Evaluate loop.while\n")
+  val parse_tree = Stmts.parse_all(filter_tokens(lexing_simp(WHILE_REGS, prog))).head
+  val t0 = System.nanoTime()
+  println(eval(parse_tree))
   val t1 = System.nanoTime()
   time_elapsed(t0, t1)
 }
