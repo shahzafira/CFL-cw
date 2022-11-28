@@ -319,5 +319,48 @@ def q2() = {
 }
 
 
+@arg(doc = "Evaluate fib.while program")
+@main
+def e_fib() = {
+  val prog = scala.io.Source.fromFile("fib.while").getLines.mkString("\n")
+  println("Evaluate fib.while\n")
+  val t0 = System.nanoTime()
+  println(eval(Stmts.parse_all(filter_tokens(lexing_simp(WHILE_REGS, prog))).head))
+  val t1 = System.nanoTime()
+  println("Elapsed time: " + (t1 - t0)/1000000 + "ms")
+}
+
+@arg(doc = "Evaluate loop.while program")
+@main
+def e_loop() = {
+  val prog = scala.io.Source.fromFile("loop.while").getLines.mkString("\n")
+  println("Evaluate loop.while\n")
+  val t0 = System.nanoTime()
+  println(eval(Stmts.parse_all(filter_tokens(lexing_simp(WHILE_REGS, prog))).head))
+  val t1 = System.nanoTime()
+  println("Elapsed time: " + (t1 - t0)/1000000 + "ms")
+}
+
+@arg(doc = "Evaluate prime.while program")
+@main
+def e_prime() = {
+  val prog = scala.io.Source.fromFile("prime.while").getLines.mkString("\n")
+  println("Evaluate prime.while\n")
+  val t0 = System.nanoTime()
+  println(eval(Stmts.parse_all(filter_tokens(lexing_simp(WHILE_REGS, prog))).head))
+  val t1 = System.nanoTime()
+  println("Elapsed time: " + (t1 - t0)/1000000 + "ms")
+}
+
+@arg(doc = "Evaluate collatz.while program")
+@main
+def e_coll() = {
+  val prog = scala.io.Source.fromFile("collatz.while").getLines.mkString("\n")
+  println("Evaluate collatz.while\n")
+  val t0 = System.nanoTime()
+  println(eval(Stmts.parse_all(filter_tokens(lexing_simp(WHILE_REGS, prog))).head))
+  val t1 = System.nanoTime()
+  println("Elapsed time: " + (t1 - t0)/1000000 + "ms")
+}
 
 // runs with amm2 and amm3
