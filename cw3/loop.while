@@ -1,4 +1,4 @@
-start := 1000;
+start := 100;
 x := start;
 y := start;
 z := start;
