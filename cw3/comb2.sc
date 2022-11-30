@@ -20,8 +20,7 @@ case class ~[+A, +B](x: A, y: B)
 
 // constraint for the input
 type IsSeq[A] = A => Seq[_]
-// type Tokens = List[Token]
-// use List(String, String) if you cannot get it to work with the lexer
+type Tokens = List[(String, String)]
 
 
 abstract class Parser[I : IsSeq, T]{
@@ -57,43 +56,36 @@ class MapParser[I : IsSeq, T, S](p: => Parser[I, T],
 
 // remember that tokens (String, String) are the type and then what it actually contains
 // atomic parser for (particular) strings
-case class TknParser(s: (String, String)) extends Parser[List[(String, String)], String] {
-  def parse(sb: List[(String, String)]) = {
+case class TknParser(s: (String, String)) extends Parser[Tokens, String] {
+  def parse(sb: Tokens) = {
     if (!sb.isEmpty && s._2 == sb.head._2) Set((s._2, sb.tail)) else Set()
   }
 }
 
-case object StrParser extends Parser[List[(String, String)], String] {
-  def parse(sb: List[(String, String)]) = {
+case object StrParser extends Parser[Tokens, String] {
+  def parse(sb: Tokens) = {
     if (!sb.isEmpty && sb.head._1 == "str") Set((sb.head._2, sb.tail)) else Set()
   }
 }
 
 // atomic parser for identifiers (variable names)
-case object IdParser extends Parser[List[(String, String)], String] {
+case object IdParser extends Parser[Tokens, String] {
   val reg = "[a-z][a-z,0-9]*".r
-  def parse(sb: List[(String, String)]) = {
+  def parse(sb: Tokens) = {
     if (!sb.isEmpty && sb.head._1 == "i") Set((sb.head._2, sb.tail)) else Set()
   }
 }
 
 
 // atomic parser for numbers (transformed into ints)
-case object NumParser extends Parser[List[(String, String)], Int] {
+case object NumParser extends Parser[Tokens, Int] {
   val reg = "[0-9]+".r
-  def parse(sb: List[(String, String)]) = {
+  def parse(sb: Tokens) = {
     if (!sb.isEmpty && sb.head._1 == "n") Set((sb.head._2.toInt, sb.tail)) else Set()
   }
 }
 
-// the following string interpolation allows us to write 
-// StrParser(_some_string_) more conveniently as 
-//
-// p"<_some_string_>" 
-
-// implicit def parser_interpolation(sc: StringContext) = new {
-//     def p(args: Any*) = StrParser(sc.s(args:_*))
-// }    
+    
 
 // more convenient syntax for parser combinators
 implicit def ParserOps[I : IsSeq, T](p: Parser[I, T]) = new {
@@ -132,20 +124,20 @@ case class Lop(o: String, b1: BExp, b2: BExp) extends BExp
 
 
 // arithmetic expressions
-lazy val AExp: Parser[List[(String, String)], AExp] = 
+lazy val AExp: Parser[Tokens, AExp] = 
   (Te ~ TknParser("o", "+") ~ AExp).map[AExp]{ case x ~ _ ~ z => Aop("+", x, z) } ||
   (Te ~ TknParser("o", "-") ~ AExp).map[AExp]{ case x ~ _ ~ z => Aop("-", x, z) } || Te
-lazy val Te: Parser[List[(String, String)], AExp] = 
+lazy val Te: Parser[Tokens, AExp] = 
   (Fa ~ TknParser("o", "*") ~ Te).map[AExp]{ case x ~ _ ~ z => Aop("*", x, z) } || 
   (Fa ~ TknParser("o", "/") ~ Te).map[AExp]{ case x ~ _ ~ z => Aop("/", x, z) } || 
   (Fa ~ TknParser("o", "%") ~ Te).map[AExp]{ case x ~ _ ~ z => Aop("%", x, z) } || Fa  
-lazy val Fa: Parser[List[(String, String)], AExp] = 
+lazy val Fa: Parser[Tokens, AExp] = 
    (TknParser("r", "(") ~ AExp ~ TknParser("r", ")")).map{ case _ ~ y ~ _ => y } || 
    IdParser.map(Var) || 
    NumParser.map(Num)
 
 // boolean expressions with some simple nesting
-lazy val BExp: Parser[List[(String, String)], BExp] = 
+lazy val BExp: Parser[Tokens, BExp] = 
    (AExp ~ TknParser("o", "==") ~ AExp).map[BExp]{ case x ~ _ ~ z => Bop("==", x, z) } || 
    (AExp ~ TknParser("o", "!=") ~ AExp).map[BExp]{ case x ~ _ ~ z => Bop("!=", x, z) } || 
    (AExp ~ TknParser("o", "<") ~ AExp).map[BExp]{ case x ~ _ ~ z => Bop("<", x, z) } || 
@@ -159,7 +151,7 @@ lazy val BExp: Parser[List[(String, String)], BExp] =
    (TknParser("r", "(") ~ BExp ~ TknParser("r", ")")).map[BExp]{ case _ ~ x ~ _ => x }
 
 // a single statement 
-lazy val Stmt: Parser[List[(String, String)], Stmt] =
+lazy val Stmt: Parser[Tokens, Stmt] =
   ((TknParser("k", "skip").map[Stmt]{_ => Skip }) ||
    (IdParser ~ TknParser("o", ":=") ~ AExp).map[Stmt]{ case x ~ _ ~ z => Assign(x, z) } ||
    (TknParser("k", "write") ~ TknParser("r", "(") ~ IdParser ~ TknParser("r", ")")).map[Stmt]{ case _ ~ _ ~ y ~ _ => WriteVar(y) } ||
@@ -174,17 +166,17 @@ lazy val Stmt: Parser[List[(String, String)], Stmt] =
  
  
 // statements
-lazy val Stmts: Parser[List[(String, String)], Block] =
+lazy val Stmts: Parser[Tokens, Block] =
   (Stmt ~ TknParser("s", ";") ~ Stmts).map[Block]{ case x ~ _ ~ z => x :: z } ||
   (Stmt.map[Block]{ s => List(s) })
 
 // blocks (enclosed in curly braces)
-lazy val Block: Parser[List[(String, String)], Block] =
+lazy val Block: Parser[Tokens, Block] =
   ((TknParser("cu", "{") ~ Stmts ~ TknParser("cu", "}")).map{ case _ ~ y ~ _ => y } || 
    (Stmt.map(s => List(s))))
 
 // filters out whitespaces and comments from tokens
-def filter_tokens(toks: List[(String, String)]) = toks.filter(_._1 != "w").filter(_._1 != "c")
+def filter_tokens(toks: Tokens) = toks.filter(_._1 != "w").filter(_._1 != "c")
 
 
 
@@ -235,6 +227,7 @@ def eval_bexp(b: BExp, env: Env) : Boolean = b match {
   case Lop("||", b1, b2) => eval_bexp(b1, env) || eval_bexp(b2, env)
 }
 
+// you can only assign AExps to variables, so no need to use escape for WriteVar
 def eval_stmt(s: Stmt, env: Env) : Env = s match {
   case Skip => env
   case Assign(x, a) => env + (x -> eval_aexp(a, env))
@@ -242,8 +235,8 @@ def eval_stmt(s: Stmt, env: Env) : Env = s match {
   case While(b, bl) => 
     if (eval_bexp(b, env)) eval_stmt(While(b, bl), eval_bl(bl, env))
     else env
-  case WriteVar(x) => { println(env(x)) ; env }
-  case WriteStr(x) => { println(x.stripPrefix("\"").stripSuffix("\"")) ; env }
+  case WriteVar(x) => { print(env(x)) ; env }
+  case WriteStr(x) => { if (x == esc("\n")) print('\n') else print(x.stripPrefix("\"").stripSuffix("\"")); env }
   case Read(x) => env + (x -> Console.in.readLine().toInt)
   // try also Console.in.readLine().toInt
 }
