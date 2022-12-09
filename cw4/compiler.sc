@@ -665,6 +665,8 @@ def compile_op(op: String) = op match {
   case "+" => i"iadd"
   case "-" => i"isub"
   case "*" => i"imul"
+  case "/" => i"idiv"
+  case "%" => i"irem"
 }
 
 // arithmetic expression compilation
@@ -686,6 +688,12 @@ def compile_bexp(b: BExp, env : Env, jmp: String) : String = b match {
     compile_aexp(a1, env) ++ compile_aexp(a2, env) ++ i"if_icmpeq $jmp"
   case Bop("<", a1, a2) => 
     compile_aexp(a1, env) ++ compile_aexp(a2, env) ++ i"if_icmpge $jmp"
+  case Bop(">", a1, a2) => 
+    compile_aexp(a1, env) ++ compile_aexp(a2, env) ++ i"if_icmple $jmp"
+  case Bop("<=", a1, a2) => 
+    compile_aexp(a1, env) ++ compile_aexp(a2, env) ++ i"if_icmpgt $jmp"
+  case Bop(">=", a1, a2) => 
+    compile_aexp(a1, env) ++ compile_aexp(a2, env) ++ i"if_icmplt $jmp"
 }
 
 // statement compilation
@@ -746,9 +754,13 @@ def compile(bl: Block, class_name: String) : String = {
   (beginning ++ instructions ++ ending).replaceAllLiterally("XXX", class_name)
 }
 
+def parse_code(code: String) : List[Stmt] = {
+  Stmts.parse_all(filter_tokens(lexing_simp(WHILE_REGS, code))).head
+}
+
 val fib_code = 
     """write "Fib: ";
-    read n;
+    n := 3;
     minus1 := 1;
     minus2 := 0;
     while n > 0 do {
@@ -762,11 +774,9 @@ val fib_code =
     write "\n""""
 
 
-
-// // prints out the JVM instructions
-// // @main
-// // def test() = 
-// //   println(compile(fib_test, "fib"))
+@main
+def fib_jas() = 
+  println(compile(parse_code(fib_code), "fib"))
 
 
 
