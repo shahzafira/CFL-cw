@@ -1,0 +1,20 @@
+HashSet(
+    List(
+        WriteStr("Fib: "),
+        Read(n),
+        Assign(minus1,Num(1)),
+        Assign(minus2,Num(0)),
+        While(
+            Bop(>,Var(n),Num(0)),
+            List(
+                Assign(temp,Var(minus2)),
+                Assign(minus2,Aop(+,Var(minus1),Var(minus2))),
+                Assign(minus1,Var(temp)),
+                Assign(n,Aop(-,Var(n),Num(1)))
+            )
+        ),
+        WriteStr("Result: "),
+        WriteVar(minus2),
+        WriteStr("\n")
+    )
+)
