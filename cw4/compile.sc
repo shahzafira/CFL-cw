@@ -741,7 +741,7 @@ def compile_stmt(s: Stmt, env: Env) : (String, Env) = s match {
      i"invokestatic XXX/XXX/writeVar(I)V", env)
   }
   case WriteStr(x) => {
-    (i"ldc \"${x}\" \t\t; $x" ++ 
+    (i"ldc ${x} \t\t; $x" ++ 
      i"invokestatic XXX/XXX/writeStr(Ljava/lang/String;)V", env)
   }
   case Read(x) => {
@@ -771,6 +771,9 @@ def parse_code(code: String) : List[Stmt] = {
   Stmts.parse_all(filter_tokens(lexing_simp(WHILE_REGS, code))).head
 }
 
+
+// Question 1
+// Create files for fib and fact
 val fib_toks =
   List(WriteStr("Fib: "),
     Read("n"),
@@ -791,7 +794,7 @@ def test_fib() =
 
 
 
-val factCode = 
+val fact_code = 
   """write "Fact: ";
   read n;
   f := 1;
@@ -799,31 +802,7 @@ val factCode =
   while (i <= n) do {f := f * i; i := i + 1};
   write(f)"""
 
-val factToks = parse_code(factCode)
-
-@main
-def testing() =
-  run(factToks, "tester")
-
-
-
-
-val fact_toks = 
-  List(
-  WriteStr(s = "Fact: "),
-  Read(s = "n"),
-  Assign(s = "f", a = Num(i = 1)),
-  Assign(s = "i", a = Num(i = 1)),
-  While(
-    b = Bop(o = "<=", a1 = Var(s = "i"), a2 = Var(s = "n")),
-    bl = List(
-      Assign(s = "f", a = Aop(o = "*", a1 = Var(s = "f"), a2 = Var(s = "i"))),
-      Assign(s = "i", a = Aop(o = "+", a1 = Var(s = "i"), a2 = Num(i = 1)))
-    )
-  ),
-  WriteVar(s = "f")
-)
-
+val fact_toks = parse_code(fact_code)
 
 @main
 def test_fact() =

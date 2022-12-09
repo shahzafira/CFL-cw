@@ -775,8 +775,8 @@ val fib_code =
 
 
 @main
-def fib_jas() = 
-  println(compile(parse_code(fib_code), "fib"))
+def fibj() = 
+  println(parse_code(fib_code))   //test      
 
 
 
