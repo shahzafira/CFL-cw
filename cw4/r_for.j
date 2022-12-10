@@ -1,5 +1,5 @@
 
-.class public fact.fact
+.class public r_for.r_for
 .super java/lang/Object
 
 .method public static writeVar(I)V 
@@ -60,30 +60,48 @@ Label2:
 
 ; COMPILED CODE STARTS
 
-   ldc "Fact: " 		; "Fact: "
-   invokestatic fact/fact/writeStr(Ljava/lang/String;)V
-   invokestatic fact/fact/read()I
-   istore 0 		; n
-   ldc 1
-   istore 1 		; f
-   ldc 1
-   istore 2 		; i
-Loop_begin_0:
-   iload 2 		; i
-   iload 0 		; n
-   if_icmpgt Loop_end_1
-   iload 1 		; f
-   iload 2 		; i
-   imul
-   istore 1 		; f
-   iload 2 		; i
+   ldc 2
+   istore 0 		; i
+For_begin_0:
+   iload 0 		; i
+   ldc 4
+   if_icmpgt For_end_1
+   iload 0 		; i
+   invokestatic r_for/r_for/writeVar(I)V
+   iload 0 		; i
    ldc 1
    iadd
-   istore 2 		; i
-   goto Loop_begin_0
-Loop_end_1:
-   iload 1 		; f
-   invokestatic fact/fact/writeVar(I)V
+   istore 0 		; i
+   goto For_begin_0
+For_end_1:
+   ldc 2
+   istore 0 		; i
+For_begin_2:
+   iload 0 		; i
+   ldc 2
+   if_icmpgt For_end_3
+   iload 0 		; i
+   invokestatic r_for/r_for/writeVar(I)V
+   iload 0 		; i
+   ldc 1
+   iadd
+   istore 0 		; i
+   goto For_begin_2
+For_end_3:
+   ldc 2
+   istore 0 		; i
+For_begin_4:
+   iload 0 		; i
+   ldc 1
+   if_icmpgt For_end_5
+   iload 0 		; i
+   invokestatic r_for/r_for/writeVar(I)V
+   iload 0 		; i
+   ldc 1
+   iadd
+   istore 0 		; i
+   goto For_begin_4
+For_end_5:
 
 ; COMPILED CODE ENDS
    return

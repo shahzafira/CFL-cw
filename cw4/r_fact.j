@@ -1,5 +1,5 @@
 
-.class public fact.fact
+.class public r_fact.r_fact
 .super java/lang/Object
 
 .method public static writeVar(I)V 
@@ -60,9 +60,9 @@ Label2:
 
 ; COMPILED CODE STARTS
 
-   ldc "Fact: " 		; "Fact: "
-   invokestatic fact/fact/writeStr(Ljava/lang/String;)V
-   invokestatic fact/fact/read()I
+   ldc "Fact: " 		; Fact: 
+   invokestatic r_fact/r_fact/writeStr(Ljava/lang/String;)V
+   invokestatic r_fact/r_fact/read()I
    istore 0 		; n
    ldc 1
    istore 1 		; f
@@ -83,7 +83,7 @@ Loop_begin_0:
    goto Loop_begin_0
 Loop_end_1:
    iload 1 		; f
-   invokestatic fact/fact/writeVar(I)V
+   invokestatic r_fact/r_fact/writeVar(I)V
 
 ; COMPILED CODE ENDS
    return

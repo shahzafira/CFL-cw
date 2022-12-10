@@ -258,7 +258,7 @@ def Range(s : List[Char]) : Rexp = s match {
 def RANGE(s: String) = Range(s.toList)
 
 // Question 1
-val KEYWORD : Rexp = "skip" | "while" | "do" | "if" | "then" | "else" | "read" | "write" | "for" | "to" | "true" | "false" 
+val KEYWORD : Rexp = "skip" | "while" | "do" | "if" | "then" | "else" | "read" | "write" | "for" | "to" | "true" | "false" | "upto"
 val OP : Rexp = ":=" | "=" | "-" | "+" | "*" | "!=" | "<" | ">" | "%" | "/" | "==" | "<=" | ">=" | "&&" | "||"
 val LETTER = RANGE("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
 val SYM = RANGE("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz._><=;,\\:")
@@ -415,6 +415,7 @@ type Block = List[Stmt]
 case object Skip extends Stmt
 case class If(a: BExp, bl1: Block, bl2: Block) extends Stmt
 case class While(b: BExp, bl: Block) extends Stmt
+case class For(id: String, x: AExp, y: AExp, bl: Block) extends Stmt
 case class Assign(s: String, a: AExp) extends Stmt
 case class WriteVar(s: String) extends Stmt
 case class WriteStr(s: String) extends Stmt
@@ -470,7 +471,9 @@ lazy val Stmt: Parser[Tokens, Stmt] =
    (TknParser("k", "read") ~ IdParser).map[Stmt]{ case _ ~ z => Read(z) } ||
    (TknParser("k", "if") ~ BExp ~ TknParser("k", "then") ~ Block ~ TknParser("k", "else") ~ Block)
      .map[Stmt]{ case _ ~ y ~ _ ~ u ~ _ ~ w => If(y, u, w) } ||
-   (TknParser("k", "while") ~ BExp ~  TknParser("k", "do") ~ Block).map[Stmt]{ case _ ~ y ~ _ ~ z => While(y, z) })   
+   (TknParser("k", "while") ~ BExp ~  TknParser("k", "do") ~ Block).map[Stmt]{ case _ ~ y ~ _ ~ z => While(y, z) } ||
+   (TknParser("k", "for") ~ IdParser ~ TknParser("o", ":=") ~ AExp ~ TknParser("k", "upto") ~ AExp ~ TknParser("k", "do") ~ Block)
+     .map[Stmt]{ case _ ~ w ~ _ ~ x ~ _ ~ y ~ _ ~ z => For(w, x, y, z) })   
  
  
 // statements
@@ -543,11 +546,16 @@ def eval_stmt(s: Stmt, env: Env) : Env = s match {
   case While(b, bl) => 
     if (eval_bexp(b, env)) eval_stmt(While(b, bl), eval_bl(bl, env))
     else env
+  case For(id, x, y, bl) =>
+    val env1 = eval_stmt(Assign(id, x), env)
+    if (eval_bexp(Bop("<=", Var(id), y), env1)) eval_stmt(For(id, Aop("+", x, Num(1)), y, bl), eval_bl(bl, env1))
+    else env1
   case WriteVar(x) => { print(env(x)) ; env }
   case WriteStr(x) => { if (x == esc("\n")) print('\n') else print(x.replaceAll("^\"|\"$", "")); env }
   case Read(x) => env + (x -> Console.in.readLine().toInt)
   // try also Console.in.readLine().toInt
 }
+
 
 def eval_bl(bl: Block, env: Env) : Env = bl match {
   case Nil => env
@@ -670,7 +678,6 @@ implicit def sring_inters(sc: StringContext) = new {
 // i"iadd" and l"Label"
 
 
-
 def compile_op(op: String) = op match {
   case "+" => i"iadd"
   case "-" => i"isub"
@@ -736,12 +743,29 @@ def compile_stmt(s: Stmt, env: Env) : (String, Env) = s match {
      i"goto $loop_begin" ++
      l"$loop_end", env1)
   }
+  // b is bexp and bl is the block to run
+  // aexp doesn't change the env
+  case For(id, x, y, bl) => {
+    val for_begin = Fresh("For_begin")
+    val for_end = Fresh("For_end")
+    val (instrs1, env1) = compile_stmt(Assign(id, x), env)
+    val (instrs2, env2) = compile_block(bl, env1)
+    val cond = Bop("<=", Var(id), y)
+    (instrs1 ++
+     l"$for_begin" ++
+     compile_bexp(cond, env1, for_end) ++
+     instrs2 ++
+     compile_stmt(Assign(id, Aop("+", Var(id), Num(1))), env2)._1 ++
+     i"goto $for_begin" ++
+     l"$for_end", env1)
+  }
   case WriteVar(x) => {
     (i"iload ${env(x)} \t\t; $x" ++ 
      i"invokestatic XXX/XXX/writeVar(I)V", env)
   }
   case WriteStr(x) => {
-    (i"ldc ${x} \t\t; $x" ++ 
+    val y = x.stripPrefix("\"").stripSuffix("\"")
+    (i"ldc ${x} \t\t; $y" ++ 
      i"invokestatic XXX/XXX/writeStr(Ljava/lang/String;)V", env)
   }
   case Read(x) => {
@@ -789,9 +813,12 @@ val fib_toks =
     WriteStr("\n")) 
 
 @main
-def test_fib() = 
-  run(fib_toks, "fib")
+def comp_fib() = 
+  compile(fib_toks, "c_fib")
 
+@main
+def run_fib() = 
+  run(fib_toks, "r_fib")
 
 
 val fact_code = 
@@ -805,8 +832,12 @@ val fact_code =
 val fact_toks = parse_code(fact_code)
 
 @main
-def test_fact() =
-  run(fact_toks, "fact")
+def comp_fact() =
+  compile(fact_toks, "c_fact")
+
+@main
+def run_fact() =
+  run(fact_toks, "r_fact")
 
 
 
@@ -829,6 +860,27 @@ def run(bl: Block, class_name: String) = {
 }
 
 // C:/Users/zafiz/OneDrive/Documents/GitHub/CFL-cw/cw4/
+
+
+// Tests
+val for_code = 
+  """for i := 2 upto 4 do { write i };
+     for i := 2 upto 2 do { write i };
+     for i := 2 upto 1 do { write i }"""
+
+@main
+def comp_for() =
+  compile(parse_code(for_code), "c_for")
+
+@main
+def run_for() =
+  run(parse_code(for_code), "r_for")
+
+@main
+def eval_for() =
+  eval(parse_code(for_code))
+
+
 
 
 /* Jasmin code for reading an integer
