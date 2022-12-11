@@ -1,5 +1,5 @@
 
-.class public fib.fib
+.class public coll.coll
 .super java/lang/Object
 
 .method public static writeVar(I)V 
@@ -60,38 +60,64 @@ Label2:
 
 ; COMPILED CODE STARTS
 
-   ldc "Fib: " 		; "Fib: "
-   invokestatic fib/fib/writeStr(Ljava/lang/String;)V
-   invokestatic fib/fib/read()I
-   istore 0 		; n
    ldc 1
-   istore 1 		; minus1
-   ldc 0
-   istore 2 		; minus2
+   istore 0 		; bnd
 Loop_begin_0:
-   iload 0 		; n
+   iload 0 		; bnd
+   ldc 101
+   if_icmpge Loop_end_1
+   iload 0 		; bnd
+   invokestatic coll/coll/writeVar(I)V
+   ldc ": " 		; ": "
+   invokestatic coll/coll/writeStr(Ljava/lang/String;)V
+   iload 0 		; bnd
+   istore 1 		; n
    ldc 0
-   if_icmple Loop_end_1
-   iload 2 		; minus2
-   istore 3 		; temp
-   iload 1 		; minus1
-   iload 2 		; minus2
-   iadd
-   istore 2 		; minus2
-   iload 3 		; temp
-   istore 1 		; minus1
-   iload 0 		; n
+   istore 2 		; cnt
+Loop_begin_2:
+   iload 1 		; n
    ldc 1
-   isub
-   istore 0 		; n
+   if_icmple Loop_end_3
+   iload 1 		; n
+   invokestatic coll/coll/writeVar(I)V
+   ldc "," 		; ","
+   invokestatic coll/coll/writeStr(Ljava/lang/String;)V
+   iload 1 		; n
+   ldc 2
+   irem
+   ldc 0
+   if_icmpne If_else_4
+   iload 1 		; n
+   ldc 2
+   idiv
+   istore 1 		; n
+   goto If_end_5
+If_else_4:
+   ldc 3
+   iload 1 		; n
+   imul
+   ldc 1
+   iadd
+   istore 1 		; n
+If_end_5:
+   iload 2 		; cnt
+   ldc 1
+   iadd
+   istore 2 		; cnt
+   goto Loop_begin_2
+Loop_end_3:
+   ldc "=>" 		; "=>"
+   invokestatic coll/coll/writeStr(Ljava/lang/String;)V
+   iload 2 		; cnt
+   invokestatic coll/coll/writeVar(I)V
+   ldc "\n" 		; "\n"
+   invokestatic coll/coll/writeStr(Ljava/lang/String;)V
+   iload 0 		; bnd
+   ldc 1
+   iadd
+   istore 0 		; bnd
    goto Loop_begin_0
 Loop_end_1:
-   ldc "Result: " 		; "Result: "
-   invokestatic fib/fib/writeStr(Ljava/lang/String;)V
-   iload 2 		; minus2
-   invokestatic fib/fib/writeVar(I)V
-   ldc "\n" 		; "\n"
-   invokestatic fib/fib/writeStr(Ljava/lang/String;)V
 
 ; COMPILED CODE ENDS
    return

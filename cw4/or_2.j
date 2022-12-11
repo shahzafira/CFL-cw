@@ -1,5 +1,5 @@
 
-.class public fib.fib
+.class public or_2.or_2
 .super java/lang/Object
 
 .method public static writeVar(I)V 
@@ -60,38 +60,30 @@ Label2:
 
 ; COMPILED CODE STARTS
 
-   ldc "Fib: " 		; "Fib: "
-   invokestatic fib/fib/writeStr(Ljava/lang/String;)V
-   invokestatic fib/fib/read()I
-   istore 0 		; n
    ldc 1
-   istore 1 		; minus1
-   ldc 0
-   istore 2 		; minus2
-Loop_begin_0:
-   iload 0 		; n
-   ldc 0
-   if_icmple Loop_end_1
-   iload 2 		; minus2
-   istore 3 		; temp
-   iload 1 		; minus1
-   iload 2 		; minus2
-   iadd
-   istore 2 		; minus2
-   iload 3 		; temp
-   istore 1 		; minus1
-   iload 0 		; n
+   istore 0 		; a
    ldc 1
-   isub
-   istore 0 		; n
-   goto Loop_begin_0
-Loop_end_1:
-   ldc "Result: " 		; "Result: "
-   invokestatic fib/fib/writeStr(Ljava/lang/String;)V
-   iload 2 		; minus2
-   invokestatic fib/fib/writeVar(I)V
-   ldc "\n" 		; "\n"
-   invokestatic fib/fib/writeStr(Ljava/lang/String;)V
+   istore 1 		; b
+   ldc 3
+   istore 2 		; c
+   ldc 4
+   istore 3 		; d
+   iload 0 		; a
+   iload 1 		; b
+   if_icmpne or_2_2
+   goto or_stmt_3
+or_2_2:
+   iload 2 		; c
+   iload 3 		; d
+   if_icmpne If_else_0
+or_stmt_3:
+   ldc "correct" 		; "correct"
+   invokestatic or_2/or_2/writeStr(Ljava/lang/String;)V
+   goto If_end_1
+If_else_0:
+   ldc "wrong" 		; "wrong"
+   invokestatic or_2/or_2/writeStr(Ljava/lang/String;)V
+If_end_1:
 
 ; COMPILED CODE ENDS
    return

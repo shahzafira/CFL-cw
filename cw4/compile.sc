@@ -551,7 +551,7 @@ def eval_stmt(s: Stmt, env: Env) : Env = s match {
     if (eval_bexp(Bop("<=", Var(id), y), env1)) eval_stmt(For(id, Aop("+", x, Num(1)), y, bl), eval_bl(bl, env1))
     else env1
   case WriteVar(x) => { print(env(x)) ; env }
-  case WriteStr(x) => { if (x == esc("\n")) print('\n') else print(x.replaceAll("^\"|\"$", "")); env }
+  case WriteStr(x) => { if (x == esc("\n")) print('\n') else print(x.stripPrefix("\"").stripSuffix("\"")); env }
   case Read(x) => env + (x -> Console.in.readLine().toInt)
   // try also Console.in.readLine().toInt
 }
@@ -712,7 +712,19 @@ def compile_bexp(b: BExp, env : Env, jmp: String) : String = b match {
     compile_aexp(a1, env) ++ compile_aexp(a2, env) ++ i"if_icmpgt $jmp"
   case Bop(">=", a1, a2) => 
     compile_aexp(a1, env) ++ compile_aexp(a2, env) ++ i"if_icmplt $jmp"
+  case Lop("&&", b1, b2) =>
+    compile_bexp(b1, env, jmp) ++ compile_bexp(b2, env, jmp) 
+  case Lop("||", b1, b2) =>
+    val or_2 = Fresh("or_2")
+    val or_stmt = Fresh("or_stmt")
+    compile_bexp(b1, env, or_2) ++
+    i"goto $or_stmt" ++
+    l"$or_2" ++
+    compile_bexp(b2, env, jmp) ++
+    l"$or_stmt"
 }
+
+
 // add the logical operators
 
 
@@ -796,9 +808,28 @@ def parse_code(code: String) : List[Stmt] = {
   Stmts.parse_all(filter_tokens(lexing_simp(WHILE_REGS, code))).head
 }
 
+def run(bl: Block, class_name: String) = {
+    val code = compile(bl, class_name)
+    os.write.over(os.pwd / s"$class_name.j", code)
+    os.proc("java", "-jar", "jasmin-2.4/jasmin.jar", s"$class_name.j").call()
+    os.proc("java", s"$class_name/$class_name").call(stdout = os.Inherit, stdin = os.Inherit)
+}
+// C:/Users/zafiz/OneDrive/Documents/GitHub/CFL-cw/cw4/
+
+
+// compiling and running .j-files
+//
+// JVM files can be assembled with 
+//
+//    java -jar jasmin.jar fib.j
+//
+// and started with
+//
+//    java fib/fib
+
 
 // Question 1
-// Create files for fib and fact
+// Create files for fib, fact, for loops and q3 nested loops
 
 val fib_code = 
   """write "Fib: ";
@@ -843,34 +874,13 @@ def comp_fact() =
 def run_fact() =
   run(fact_toks, "fact")
 
-
-// compiling and running .j-files
-//
-// JVM files can be assembled with 
-//
-//    java -jar jasmin.jar fib.j
-//
-// and started with
-//
-//    java fib/fib
-
-
-
-def run(bl: Block, class_name: String) = {
-    val code = compile(bl, class_name)
-    os.write.over(os.pwd / s"$class_name.j", code)
-    os.proc("java", "-jar", "jasmin-2.4/jasmin.jar", s"$class_name.j").call()
-    os.proc("java", s"$class_name/$class_name").call(stdout = os.Inherit, stdin = os.Inherit)
-}
-
-// C:/Users/zafiz/OneDrive/Documents/GitHub/CFL-cw/cw4/
-
-
-// Tests
-val for_code = 
+val for_code_tests = 
   """for i := 2 upto 4 do { write i };
      for i := 2 upto 2 do { write i };
      for i := 2 upto 1 do { write i }"""
+
+val for_code = 
+  """for i := 2 upto 4 do { write i }"""
 
 @main
 def comp_for() =
@@ -896,11 +906,97 @@ val q3_code =
 def run_q3() =
   run(parse_code(q3_code), "q3")
 
+// other programs for testing
+
+
+val coll_code =
+  """// Collatz series
+    //
+    // needs writing of strings and numbers; comments
+    bnd := 1;
+    while bnd < 101 do {
+        write bnd;
+        write ": ";
+        n := bnd;
+        cnt := 0;
+        while n > 1 do {
+            write n;
+            write ",";
+            if n % 2 == 0
+            then n := n / 2
+            else n := 3 * n + 1;
+            cnt := cnt + 1
+        };
+        write "=>";
+        write cnt;
+        write "\n";
+        bnd := bnd + 1
+    }"""  
 
 @main
-def run_all() = 
-  run_fib()
-  run_fact()
-  run_q3()
-  
+def run_coll() = 
+   run(parse_code(coll_code), "coll")
+
+val loop_code = 
+  """start := 100;
+    x := start;
+    y := start;
+    z := start;
+    while 0 < x do {
+        while 0 < y do {
+            while 0 < z do { z := z - 1 };
+            z := start;
+            y := y - 1
+        };
+        y := start;
+        x := x - 1
+    }"""
+
+@main
+def run_loop() = 
+   run(parse_code(loop_code), "loop")
+
+val prime_code = 
+  """//prints out prime numbers from 2 to 100
+
+    end := 100;
+    n := 2;
+    while (n < end) do {
+        f := 2;
+        tmp := 0;
+        while ((f < (n / 2) + 1) && (tmp == 0)) do {
+            if ((n / f) * f == n) then { tmp := 1 } else { skip };
+            f := f + 1
+        };
+        if(tmp == 0) then { write(n); write("\n") } else{skip};
+        n  := n + 1
+    }"""
+
+@main
+def run_prime() = 
+   run(parse_code(prime_code), "prime")
+
+val or_code_1 = 
+  """a := 1;
+     b := 2;
+     c := 3;
+     d := 4;
+     if ((a == b) || (c == d)) then { write("wrong") } else { write("correct") }
+  """
+
+val or_code_2 = 
+  """a := 1;
+     b := 1;
+     c := 3;
+     d := 4;
+     if ((a == b) || (c == d)) then { write("correct") } else { write("wrong") }
+  """
+
+val or_code_3 = 
+  """a := 1;
+     b := 2;
+     c := 3;
+     d := 3;
+     if ((a == b) || (c == d)) then { write("correct") } else { write("wrong") }
+  """
 // runs with amm2 and amm3

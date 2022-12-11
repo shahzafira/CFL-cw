@@ -60,10 +60,12 @@ Label2:
 
 ; COMPILED CODE STARTS
 
+   ldc 2
+   istore 0 		; i
 For_begin_0:
    iload 0 		; i
    ldc 4
-   if_icmpne For_end_1
+   if_icmpgt For_end_1
    iload 0 		; i
    invokestatic for/for/writeVar(I)V
    iload 0 		; i

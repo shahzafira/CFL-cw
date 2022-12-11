@@ -62,30 +62,30 @@ Label2:
 
    ldc 1
    istore 0 		; i
+For_begin_0:
+   iload 0 		; i
+   ldc 10
+   if_icmpgt For_end_1
+   ldc 1
+   istore 0 		; i
 For_begin_2:
    iload 0 		; i
    ldc 10
    if_icmpgt For_end_3
-   ldc 1
-   istore 0 		; i
-For_begin_4:
-   iload 0 		; i
-   ldc 10
-   if_icmpgt For_end_5
    iload 0 		; i
    invokestatic q3/q3/writeVar(I)V
    iload 0 		; i
    ldc 1
    iadd
    istore 0 		; i
-   goto For_begin_4
-For_end_5:
+   goto For_begin_2
+For_end_3:
    iload 0 		; i
    ldc 1
    iadd
    istore 0 		; i
-   goto For_begin_2
-For_end_3:
+   goto For_begin_0
+For_end_1:
 
 ; COMPILED CODE ENDS
    return

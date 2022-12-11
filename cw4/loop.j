@@ -1,5 +1,5 @@
 
-.class public fib.fib
+.class public loop.loop
 .super java/lang/Object
 
 .method public static writeVar(I)V 
@@ -60,38 +60,48 @@ Label2:
 
 ; COMPILED CODE STARTS
 
-   ldc "Fib: " 		; "Fib: "
-   invokestatic fib/fib/writeStr(Ljava/lang/String;)V
-   invokestatic fib/fib/read()I
-   istore 0 		; n
-   ldc 1
-   istore 1 		; minus1
-   ldc 0
-   istore 2 		; minus2
+   ldc 100
+   istore 0 		; start
+   iload 0 		; start
+   istore 1 		; x
+   iload 0 		; start
+   istore 2 		; y
+   iload 0 		; start
+   istore 3 		; z
 Loop_begin_0:
-   iload 0 		; n
    ldc 0
-   if_icmple Loop_end_1
-   iload 2 		; minus2
-   istore 3 		; temp
-   iload 1 		; minus1
-   iload 2 		; minus2
-   iadd
-   istore 2 		; minus2
-   iload 3 		; temp
-   istore 1 		; minus1
-   iload 0 		; n
+   iload 1 		; x
+   if_icmpge Loop_end_1
+Loop_begin_2:
+   ldc 0
+   iload 2 		; y
+   if_icmpge Loop_end_3
+Loop_begin_4:
+   ldc 0
+   iload 3 		; z
+   if_icmpge Loop_end_5
+   iload 3 		; z
    ldc 1
    isub
-   istore 0 		; n
+   istore 3 		; z
+   goto Loop_begin_4
+Loop_end_5:
+   iload 0 		; start
+   istore 3 		; z
+   iload 2 		; y
+   ldc 1
+   isub
+   istore 2 		; y
+   goto Loop_begin_2
+Loop_end_3:
+   iload 0 		; start
+   istore 2 		; y
+   iload 1 		; x
+   ldc 1
+   isub
+   istore 1 		; x
    goto Loop_begin_0
 Loop_end_1:
-   ldc "Result: " 		; "Result: "
-   invokestatic fib/fib/writeStr(Ljava/lang/String;)V
-   iload 2 		; minus2
-   invokestatic fib/fib/writeVar(I)V
-   ldc "\n" 		; "\n"
-   invokestatic fib/fib/writeStr(Ljava/lang/String;)V
 
 ; COMPILED CODE ENDS
    return

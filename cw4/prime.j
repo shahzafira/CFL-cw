@@ -1,5 +1,5 @@
 
-.class public fib.fib
+.class public prime.prime
 .super java/lang/Object
 
 .method public static writeVar(I)V 
@@ -60,38 +60,63 @@ Label2:
 
 ; COMPILED CODE STARTS
 
-   ldc "Fib: " 		; "Fib: "
-   invokestatic fib/fib/writeStr(Ljava/lang/String;)V
-   invokestatic fib/fib/read()I
-   istore 0 		; n
-   ldc 1
-   istore 1 		; minus1
-   ldc 0
-   istore 2 		; minus2
+   ldc 100
+   istore 0 		; end
+   ldc 2
+   istore 1 		; n
 Loop_begin_0:
-   iload 0 		; n
+   iload 1 		; n
+   iload 0 		; end
+   if_icmpge Loop_end_1
+   ldc 2
+   istore 2 		; f
    ldc 0
-   if_icmple Loop_end_1
-   iload 2 		; minus2
-   istore 3 		; temp
-   iload 1 		; minus1
-   iload 2 		; minus2
-   iadd
-   istore 2 		; minus2
-   iload 3 		; temp
-   istore 1 		; minus1
-   iload 0 		; n
+   istore 3 		; tmp
+Loop_begin_2:
+   iload 2 		; f
+   iload 1 		; n
+   ldc 2
+   idiv
    ldc 1
-   isub
-   istore 0 		; n
+   iadd
+   if_icmpge Loop_end_3
+   iload 3 		; tmp
+   ldc 0
+   if_icmpne Loop_end_3
+   iload 1 		; n
+   iload 2 		; f
+   idiv
+   iload 2 		; f
+   imul
+   iload 1 		; n
+   if_icmpne If_else_4
+   ldc 1
+   istore 3 		; tmp
+   goto If_end_5
+If_else_4:
+If_end_5:
+   iload 2 		; f
+   ldc 1
+   iadd
+   istore 2 		; f
+   goto Loop_begin_2
+Loop_end_3:
+   iload 3 		; tmp
+   ldc 0
+   if_icmpne If_else_6
+   iload 1 		; n
+   invokestatic prime/prime/writeVar(I)V
+   ldc "\n" 		; "\n"
+   invokestatic prime/prime/writeStr(Ljava/lang/String;)V
+   goto If_end_7
+If_else_6:
+If_end_7:
+   iload 1 		; n
+   ldc 1
+   iadd
+   istore 1 		; n
    goto Loop_begin_0
 Loop_end_1:
-   ldc "Result: " 		; "Result: "
-   invokestatic fib/fib/writeStr(Ljava/lang/String;)V
-   iload 2 		; minus2
-   invokestatic fib/fib/writeVar(I)V
-   ldc "\n" 		; "\n"
-   invokestatic fib/fib/writeStr(Ljava/lang/String;)V
 
 ; COMPILED CODE ENDS
    return
