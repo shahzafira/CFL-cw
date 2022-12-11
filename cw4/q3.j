@@ -1,5 +1,5 @@
 
-.class public r_fact.r_fact
+.class public q3.q3
 .super java/lang/Object
 
 .method public static writeVar(I)V 
@@ -60,30 +60,32 @@ Label2:
 
 ; COMPILED CODE STARTS
 
-   ldc "Fact: " 		; Fact: 
-   invokestatic r_fact/r_fact/writeStr(Ljava/lang/String;)V
-   invokestatic r_fact/r_fact/read()I
-   istore 0 		; n
    ldc 1
-   istore 1 		; f
+   istore 0 		; i
+For_begin_2:
+   iload 0 		; i
+   ldc 10
+   if_icmpgt For_end_3
    ldc 1
-   istore 2 		; i
-Loop_begin_0:
-   iload 2 		; i
-   iload 0 		; n
-   if_icmpgt Loop_end_1
-   iload 1 		; f
-   iload 2 		; i
-   imul
-   istore 1 		; f
-   iload 2 		; i
+   istore 0 		; i
+For_begin_4:
+   iload 0 		; i
+   ldc 10
+   if_icmpgt For_end_5
+   iload 0 		; i
+   invokestatic q3/q3/writeVar(I)V
+   iload 0 		; i
    ldc 1
    iadd
-   istore 2 		; i
-   goto Loop_begin_0
-Loop_end_1:
-   iload 1 		; f
-   invokestatic r_fact/r_fact/writeVar(I)V
+   istore 0 		; i
+   goto For_begin_4
+For_end_5:
+   iload 0 		; i
+   ldc 1
+   iadd
+   istore 0 		; i
+   goto For_begin_2
+For_end_3:
 
 ; COMPILED CODE ENDS
    return

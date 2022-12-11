@@ -678,6 +678,7 @@ implicit def sring_inters(sc: StringContext) = new {
 // i"iadd" and l"Label"
 
 
+
 def compile_op(op: String) = op match {
   case "+" => i"iadd"
   case "-" => i"isub"
@@ -713,6 +714,7 @@ def compile_bexp(b: BExp, env : Env, jmp: String) : String = b match {
     compile_aexp(a1, env) ++ compile_aexp(a2, env) ++ i"if_icmplt $jmp"
 }
 // add the logical operators
+
 
 // statement compilation
 def compile_stmt(s: Stmt, env: Env) : (String, Env) = s match {
@@ -764,8 +766,7 @@ def compile_stmt(s: Stmt, env: Env) : (String, Env) = s match {
      i"invokestatic XXX/XXX/writeVar(I)V", env)
   }
   case WriteStr(x) => {
-    val y = x.stripPrefix("\"").stripSuffix("\"")
-    (i"ldc ${x} \t\t; $y" ++ 
+    (i"ldc ${x} \t\t; $x" ++ 
      i"invokestatic XXX/XXX/writeStr(Ljava/lang/String;)V", env)
   }
   case Read(x) => {
@@ -798,27 +799,30 @@ def parse_code(code: String) : List[Stmt] = {
 
 // Question 1
 // Create files for fib and fact
-val fib_toks =
-  List(WriteStr("Fib: "),
-    Read("n"),
-    Assign("minus1",Num(1)),
-    Assign("minus2",Num(0)),
-    While(Bop(">",Var("n"),Num(0)),
-      List(Assign("temp",Var("minus2")),
-        Assign("minus2",Aop("+",Var("minus1"),Var("minus2"))),
-        Assign("minus1",Var("temp")),
-        Assign("n",Aop("-",Var("n"),Num(1))))),
-    WriteStr("Result: "),
-    WriteVar("minus2"),
-    WriteStr("\n")) 
+
+val fib_code = 
+  """write "Fib: ";
+     read n;
+     minus1 := 1;
+     minus2 := 0;
+     while n > 0 do {
+      temp := minus2;
+      minus2 := minus1 + minus2;
+      minus1 := temp;
+      n := n - 1
+    };
+    write "Result: ";
+    write minus2 ;
+    write "\n"
+  """
 
 @main
 def comp_fib() = 
-  compile(fib_toks, "c_fib")
+  compile(parse_code(fib_code), "c_fib")
 
 @main
 def run_fib() = 
-  run(fib_toks, "r_fib")
+  run(parse_code(fib_code), "fib")
 
 
 val fact_code = 
@@ -837,8 +841,7 @@ def comp_fact() =
 
 @main
 def run_fact() =
-  run(fact_toks, "r_fact")
-
+  run(fact_toks, "fact")
 
 
 // compiling and running .j-files
@@ -850,6 +853,7 @@ def run_fact() =
 // and started with
 //
 //    java fib/fib
+
 
 
 def run(bl: Block, class_name: String) = {
@@ -874,55 +878,29 @@ def comp_for() =
 
 @main
 def run_for() =
-  run(parse_code(for_code), "r_for")
+  run(parse_code(for_code), "for")
 
 @main
 def eval_for() =
   eval(parse_code(for_code))
 
 
+val q3_code = 
+  """for i := 1 upto 10 do {
+      for i := 1 upto 10 do {
+        write i
+      }
+    }"""
+
+@main
+def run_q3() =
+  run(parse_code(q3_code), "q3")
 
 
-/* Jasmin code for reading an integer
-
-.method public static read()I 
-    .limit locals 10 
-    .limit stack 10
-
-    ldc 0 
-    istore 1  ; this will hold our final integer 
-Label1: 
-    getstatic java/lang/System/in Ljava/io/InputStream; 
-    invokevirtual java/io/InputStream/read()I 
-    istore 2 
-    iload 2 
-    ldc 10   ; the newline delimiter 
-    isub 
-    ifeq Label2 
-    iload 2 
-    ldc 32   ; the space delimiter 
-    isub 
-    ifeq Label2
-
-    iload 2 
-    ldc 48   ; we have our digit in ASCII, have to subtract it from 48 
-    isub 
-    ldc 10 
-    iload 1 
-    imul 
-    iadd 
-    istore 1 
-    goto Label1 
-Label2: 
-    ; when we come here we have our integer computed in local variable 1 
-    iload 1 
-    ireturn 
-.end method
-
-*/
-
-
-
-
-
+@main
+def run_all() = 
+  run_fib()
+  run_fact()
+  run_q3()
+  
 // runs with amm2 and amm3
