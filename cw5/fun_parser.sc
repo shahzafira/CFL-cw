@@ -86,9 +86,30 @@ case object NumParser extends Parser[List[Token], Int] {
   }
 }
 
+case object FNumParser extends Parser[List[Token], Double] {
+  def parse(ts: List[Token]) = ts match {
+    case T_FLOAT(n)::ts => Set((n, ts)) 
+    case _ => Set ()
+  }
+}
+
 case object IdParser extends Parser[List[Token], String] {
   def parse(ts: List[Token]) = ts match {
     case T_ID(s)::ts => Set((s, ts)) 
+    case _ => Set ()
+  }
+}
+
+case object OpParser extends Parser[List[Token], String] {
+  def parse(ts: List[Token]) = ts match {
+    case T_OP(s)::ts => Set((s, ts)) 
+    case _ => Set ()
+  }
+}
+
+case object KWDParser extends Parser[List[Token], String] {
+  def parse(ts: List[Token]) = ts match {
+    case T_KWD(s)::ts => Set((s, ts)) 
     case _ => Set ()
   }
 }
@@ -102,12 +123,16 @@ abstract class Decl extends Serializable
 
 case class Def(name: String, args: List[String], body: Exp) extends Decl
 case class Main(e: Exp) extends Decl
+case class Const(name: String, v: Int) extends Decl
+case class FConst(name: String, x: Double) extends Decl
 
 case class Call(name: String, args: List[Exp]) extends Exp
 case class If(a: BExp, e1: Exp, e2: Exp) extends Exp
-case class Write(e: Exp) extends Exp
+// case class Write(e: Exp) extends Exp
 case class Var(s: String) extends Exp
 case class Num(i: Int) extends Exp
+case class FNum(f: Double) extends Exp
+case class ChConst(c: Int) extends Exp
 case class Aop(o: String, a1: Exp, a2: Exp) extends Exp
 case class Sequence(e1: Exp, e2: Exp) extends Exp
 case class Bop(o: String, a1: Exp, a2: Exp) extends BExp
