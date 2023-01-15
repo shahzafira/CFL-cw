@@ -229,6 +229,7 @@ case object T_RPAREN extends Token
 case class T_ID(s: String) extends Token
 case class T_OP(s: String) extends Token
 case class T_NUM(n: Int) extends Token
+case class T_FLOAT(n: Float) extends Token
 case class T_KWD(s: String) extends Token
 
 val token : PartialFunction[(String, String), Token] = {
