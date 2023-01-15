@@ -205,6 +205,7 @@ val COMMA: Rexp = ","
 val ALL = SYM | DIGIT | OP | " " | ":" | ";" | "\"" | "=" | "," | "(" | ")"
 val ALL2 = ALL | "\n"
 val COMMENT = ("/*" ~ ALL2.% ~ "*/") | ("//" ~ ALL.% ~ "\n")
+val TYPE = "Int" | "Double" | "Void"
 
 
 val FUN_REGS = (("k" $ KEYWORD) | 
@@ -215,7 +216,8 @@ val FUN_REGS = (("k" $ KEYWORD) |
                   ("c" $ COMMA) |
                   ("pl" $ LPAREN) |
                   ("pr" $ RPAREN) |
-                  ("w" $ (WHITESPACE | COMMENT))).%
+                  ("w" $ (WHITESPACE | COMMENT)) |
+                  ("ty" $ TYPE)).%
 
 
 
@@ -223,6 +225,7 @@ val FUN_REGS = (("k" $ KEYWORD) |
 
 abstract class Token extends Serializable 
 case object T_SEMI extends Token
+case object T_COLON extends Token
 case object T_COMMA extends Token
 case object T_LPAREN extends Token
 case object T_RPAREN extends Token
@@ -231,16 +234,20 @@ case class T_OP(s: String) extends Token
 case class T_NUM(n: Int) extends Token
 case class T_FLOAT(n: Float) extends Token
 case class T_KWD(s: String) extends Token
+case class T_TYPE(s: String) extends Token
 
 val token : PartialFunction[(String, String), Token] = {
   case ("k", s) => T_KWD(s)
   case ("i", s) => T_ID(s)
   case ("o", s) => T_OP(s)
   case ("n", s) => T_NUM(s.toInt)
+  case ("n", s) => T_FLOAT(s.toDouble)
   case ("s", _) => T_SEMI
+  case ("cl", _) => T_COLON
   case ("c", _) => T_COMMA
   case ("pl", _) => T_LPAREN
   case ("pr", _) => T_RPAREN
+  case ("ty", s) => T_TYPE(s)
 }
 
 
