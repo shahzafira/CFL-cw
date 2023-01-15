@@ -194,7 +194,7 @@ val SYM = "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j" | "k" |
           "w" | "x" | "y" | "z" | "T" | "_"
 val DIGIT = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
 val ID = SYM ~ (SYM | DIGIT).% 
-val NUM = PLUS(DIGIT)
+val NUM = OPTIONAL("-") ~ PLUS(DIGIT)
 val KEYWORD : Rexp = "if" | "then" | "else" | "write" | "def"
 val SEMI: Rexp = ";"
 val OP: Rexp = "=" | "==" | "-" | "+" | "*" | "!=" | "<" | ">" | "<=" | ">=" | "%" | "/"
@@ -206,6 +206,7 @@ val ALL = SYM | DIGIT | OP | " " | ":" | ";" | "\"" | "=" | "," | "(" | ")"
 val ALL2 = ALL | "\n"
 val COMMENT = ("/*" ~ ALL2.% ~ "*/") | ("//" ~ ALL.% ~ "\n")
 val TYPE = "Int" | "Double" | "Void"
+val FLOAT = OPTIONAL("-") ~ NUM ~ "." ~ NUM.%
 
 
 val FUN_REGS = (("k" $ KEYWORD) | 
@@ -217,7 +218,8 @@ val FUN_REGS = (("k" $ KEYWORD) |
                   ("pl" $ LPAREN) |
                   ("pr" $ RPAREN) |
                   ("w" $ (WHITESPACE | COMMENT)) |
-                  ("ty" $ TYPE)).%
+                  ("ty" $ TYPE)
+                  ("f" $ FLOAT)).%
 
 
 
