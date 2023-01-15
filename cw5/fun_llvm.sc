@@ -79,6 +79,7 @@ case class KIf(x1: String, e1: KExp, e2: KExp) extends KExp {
 case class KReturn(v: KVal) extends KExp
 
 // Add type conversions
+var type_conversion = Map("Int" -> "i32", "Double" -> "double", "Void" -> "void")
 
 
 // CPS translation from Exps to KExps using a
@@ -211,8 +212,21 @@ def compile_op(op: String) = op match {
   case "/" => "sdiv i32 "
   case "%" => "srem i32 "
   case "==" => "icmp eq i32 "
+  case "!=" => "icmp ne i32"
   case "<=" => "icmp sle i32 "     // signed less or equal
   case "<"  => "icmp slt i32 "     // signed less than
+}
+
+def compile_dop(op: String) = op match {
+  case "+" => "fadd double "
+  case "*" => "fmul double "
+  case "-" => "fsub double "
+  case "/" => "fdiv double "
+  case "%" => "frem double "
+  case "==" => "fcmp oeq double "
+  case "!=" => "fcmp one double "
+  case "<=" => "fcmp ole double "     // signed less or equal
+  case "<"  => "fcmp olt double "     // signed less than
 }
 
 // Add the other compile from the spec
