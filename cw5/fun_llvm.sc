@@ -90,7 +90,7 @@ def typ_val(v: KVal, ts: TyEnv) : String = v match {
   case KFNum(f) => "Double"
   case Kop(o, v1, v2) => typ_val(v1, ts)
   case KCall(o, vrs) => ts(o)
-  // case KWrite() =>
+  case KWrite(v) => "Void"
   case KConst(s) => "Int"
   case KFConst(s) => "Double"
   case KVoid => "Void"
@@ -128,7 +128,11 @@ def CPS(e: Exp)(k: KVal => KExp) : KExp = e match {
   case Aop(o, e1, e2) => {
     val z = Fresh("tmp")
     CPS(e1)(y1 => 
-      CPS(e2)(y2 => KLet(z, Kop(o, y1, y2), k(KVar(z)))))
+      CPS(e2)(y2 => {
+        val type = typ_val(Kop(o, y1, y2), ts)
+        ts += (z, type)
+        KLet(z, Kop(o, y1, y2), k(KVar(z, type)))
+      }))
   }
   case If(Bop(o, b1, b2), e1, e2) => {
     val z = Fresh("tmp")
@@ -136,11 +140,27 @@ def CPS(e: Exp)(k: KVal => KExp) : KExp = e match {
       CPS(b2)(y2 => 
         KLet(z, Kop(o, y1, y2), KIf(z, CPS(e1)(k), CPS(e2)(k)))))
   }
+  // Different cases for each return type
   case Call(name, args) => {
     def aux(args: List[Exp], vs: List[KVal]) : KExp = args match {
       case Nil => {
-          val z = Fresh("tmp")
-          KLet(z, KCall(name, vs), k(KVar(z)))
+        typ_val(KVar(name), ts) match {
+          case "Int" => {
+            val lab = Fresh("tmp")
+            ts += (lab, "Int")
+            KLet(z, KCall(name, vs), k(KVar(z, "Int")))
+          }
+          case "Double" => {
+            val lab = Fresh("tmp")
+            ts += (lab, "Double")
+            KLet(z, KCall(name, vs), k(KVar(z, "Double")))
+          }
+          case "Void" => {
+            val lab = Fresh("tmp")
+            ts += (lab, "Void")
+            KLet(z, KCall(name, vs), k(KVar(z, "Void")))
+          }
+        }
       }
       case e::es => CPS(e)(y => aux(es, vs ::: List(y)))
     }
@@ -150,7 +170,7 @@ def CPS(e: Exp)(k: KVal => KExp) : KExp = e match {
     CPS(e1)(_ => CPS(e2)(y2 => k(y2)))
   case Write(e) => {
     val z = Fresh("tmp")
-    CPS(e)(y => KLet(z, KWrite(y), k(KVar(z))))
+    CPS(e)(y => KLet(z, KWrite(y), k(KVar(z, "Void"))))
   }
 }   
 
