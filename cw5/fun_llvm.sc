@@ -106,7 +106,23 @@ def typ_exp(a: KExp, ts: TyEnv) : String = a match {
 // CPS translation from Exps to KExps using a
 // continuation k.
 def CPS(e: Exp)(k: KVal => KExp) : KExp = e match {
-  case Var(s) => k(KVar(s)) 
+  // Check the name to see if it is a constant
+  // Var can store either Int or Double
+  case Var(s) => {
+    if (s.head.isUpper) {
+      if (typ_val(s, ts) == "Int") {
+        val lab = Fresh("tmp")
+        ts += (lab -> "Int")
+        KLet(lab, KConst(s), k(KVar(lab, "Int")))
+      } else { // if Double
+        val lab = Fresh("tmp")
+        ts += (lab -> "Double")
+        KLet(lab, KCFonst(s), k(KVar(lab, "Double")))
+      }
+    } else { // not a constant
+      k(KVar(s, typ_val(KVar(s), ts)))
+    }
+  }
   case Num(i) => k(KNum(i))
   case FNum(f) => k(KFNum(f))
   case Aop(o, e1, e2) => {
