@@ -64,6 +64,7 @@ case class Kop(o: String, v1: KVal, v2: KVal) extends KVal
 case class KCall(o: String, vrs: List[KVal]) extends KVal
 case class KWrite(v: KVal) extends KVal
 case class KConst(s: String) extends KVal
+case class KFConst(s: String) extends KVal
 case class KVoid extends KVal
 
 
@@ -78,8 +79,28 @@ case class KIf(x1: String, e1: KExp, e2: KExp) extends KExp {
 }
 case class KReturn(v: KVal) extends KExp
 
-// Add type conversions
+// Converting types to LLVM types
 var type_conversion = Map("Int" -> "i32", "Double" -> "double", "Void" -> "void")
+// Typing environment that updates what type everything receives
+type TyEnv = Map[String, String]
+
+def typ_val(v: KVal, ts: TyEnv) : String = v match {
+  case KVar(s, ty) => ts(s)
+  case KNum(i) => "Int"
+  case KFNum(f) => "Double"
+  case Kop(o, v1, v2) => typ_val(v1, ts)
+  case KCall(o, vrs) => ts(o)
+  // case KWrite() =>
+  case KConst(s) => "Int"
+  case KFConst(s) => "Double"
+  case KVoid => "Void"
+  case _ => "UNDEF"
+}
+
+def typ_exp(a: KExp, ts: TyEnv) : String = a match {
+  case KLet(x, e1, e2) => typ_val(e1, ts)
+  case KIf(x1, e1, e2) => typ_exp(e1, ts)
+}
 
 
 // CPS translation from Exps to KExps using a
