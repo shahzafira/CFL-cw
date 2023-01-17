@@ -15,7 +15,9 @@ import scala.language.reflectiveCalls
 
 import $file.fun_tokens, fun_tokens._ 
 
-
+//Token not working
+// type Token = (String, String)
+// type Tokens = List[Token]
 // Parser combinators
 //    type parameter I needs to be of Seq-type
 //
@@ -116,18 +118,17 @@ case object KWDParser extends Parser[List[Token], String] {
 }
 
 // parse return types: int, double and void
-case object typeParser extends Parser[List[Token], String] {
+case object TypeParser extends Parser[List[Token], String] {
   def parse(ts: List[Token]) = ts match {
     case T_TYPE(s)::ts => Set((s, ts))
     case _ => Set ()
   }
 }
 
-// parse types that are Int or Double
-case object IntDoubleParser extends Parser[List[Token], String] {
-  def parse(ts: List[Token]) = {
-    var isCorrType = ts.head._2 == "Int" || ts.head._2 == "Double"
-    if (!ts.isEmpty && isCorrType) Set((ts.head._2, in.tail)) else Set()
+case object NumericTypeParser extends Parser[List[Token], String] {
+  def parse(ts: List[Token]) = ts match {
+    case T_NUMTYPE(s)::ts => Set((s, ts))
+    case _ => Set()
   }
 }
 
@@ -137,14 +138,14 @@ abstract class Exp extends Serializable
 abstract class BExp extends Serializable 
 abstract class Decl extends Serializable 
 
-case class Def(name: String, args: List[String], ty: String, body: Exp) extends Decl
+case class Def(name: String, args: List[(String, String)], ty: String, body: Exp) extends Decl
 case class Main(e: Exp) extends Decl
 case class Const(name: String, v: Int) extends Decl
 case class FConst(name: String, x: Double) extends Decl
 
 case class Call(name: String, args: List[Exp]) extends Exp
 case class If(a: BExp, e1: Exp, e2: Exp) extends Exp
-// case class Write(e: Exp) extends Exp
+case class Write(e: Exp) extends Exp
 case class Var(s: String) extends Exp
 case class Num(i: Int) extends Exp
 case class FNum(f: Double) extends Exp
@@ -190,13 +191,13 @@ lazy val BExp: Parser[List[Token], BExp] =
 
 // define constants and functions
 lazy val Defn: Parser[List[Token], Decl] =
-  (T_KWD("def") ~ IdParser ~ T_LPAREN ~ ListParser(IdParser ~ T_COLON ~ IntDoubleParser, T_COMMA) ~ T_RPAREN ~ T_COLON ~ T_TYPE ~ T_OP("=") ~ Exp) ==>
-    { case _ ~ w ~ _ ~ x ~ _ ~ _ ~ y ~ _ ~ z => Def(w, x, y, z): Decl } ||
-  (T_KWD("def") ~ IdParser ~ T_LPAREN ~ T_RPAREN ~ T_COLON ~ T_TYPE ~ T_OP("=") ~ Exp) ==>
-    { case _ ~ x ~ _ ~ _ ~ _ ~ _ ~ y ~ _ ~ z => Def(x, List(), y, z): Decl } ||
-  (T_KWD("val") ~ IdParser ~ T_COLON ~ T_TYPE("Int") ~ T_OP("=") ~ Exp) ==>
+  (T_KWD("def") ~ IdParser ~ T_LPAREN ~ ListParser(IdParser ~ T_COLON ~ NumericTypeParser, T_COMMA) ~ T_RPAREN ~ T_COLON ~ TypeParser ~ T_OP("=") ~ Exp) ==>
+    { case _ ~ w ~ _ ~ x ~ _ ~ _ ~ y ~ _ ~ z => Def(w, x.map({case a ~ b ~ c => (a, c)}).toList, y, z): Decl } ||
+  (T_KWD("def") ~ IdParser ~ T_LPAREN ~ T_RPAREN ~ T_COLON ~ TypeParser ~ T_OP("=") ~ Exp) ==>
+    { case _ ~ x ~ _ ~ _ ~ _ ~ y ~ _ ~ z => Def(x, List(), y, z): Decl } ||
+  (T_KWD("val") ~ IdParser ~ T_COLON ~ T_TYPE("Int") ~ T_OP("=") ~ NumParser) ==>
     { case _ ~ y ~ _ ~ _ ~ _ ~ z => Const(y, z): Decl } ||
-  (T_KWD("val") ~ IdParser ~ T_COLON ~ T_TYPE("Double") ~ T_OP("=") ~ Exp) ==>
+  (T_KWD("val") ~ IdParser ~ T_COLON ~ T_TYPE("Double") ~ T_OP("=") ~ FNumParser) ==>
     { case _ ~ y ~ _ ~ _ ~ _ ~ z => FConst(y, z): Decl } 
 
 lazy val Prog: Parser[List[Token], List[Decl]] =
