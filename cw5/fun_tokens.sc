@@ -21,6 +21,15 @@ case class ALT(r1: Rexp, r2: Rexp) extends Rexp
 case class SEQ(r1: Rexp, r2: Rexp) extends Rexp 
 case class STAR(r: Rexp) extends Rexp 
 case class RECD(x: String, r: Rexp) extends Rexp
+
+case class NTIMES(r: Rexp, n: Int) extends Rexp 
+case class RANGE(ls: Set[Char]) extends Rexp
+case class PL(r: Rexp) extends Rexp
+case class OPTIONAL(r: Rexp) extends Rexp
+case class UPTO(r: Rexp, m: Int) extends Rexp
+case class FROM(r: Rexp, n: Int) extends Rexp
+case class BETWEEN(r: Rexp, n: Int, m: Int) extends Rexp
+case class NOT(r: Rexp) extends Rexp
   
 abstract class Val
 case object Empty extends Val
@@ -30,6 +39,10 @@ case class Left(v: Val) extends Val
 case class Right(v: Val) extends Val
 case class Stars(vs: List[Val]) extends Val
 case class Rec(x: String, v: Val) extends Val
+case class Pl(vs: List[Val]) extends Val
+case class Opt(v: Val) extends Val
+case class Ntimes(vs: List[Val]) extends Val
+   
    
 // some convenience for typing in regular expressions
 def charlist2rexp(s : List[Char]): Rexp = s match {
@@ -63,6 +76,14 @@ def nullable (r: Rexp) : Boolean = r match {
   case SEQ(r1, r2) => nullable(r1) && nullable(r2)
   case STAR(_) => true
   case RECD(_, r1) => nullable(r1)
+  case NTIMES(r, i) => if (i == 0) true else nullable(r)
+  case RANGE(r) => false
+  case PL(r) => nullable(r)
+  case OPTIONAL(r) => true
+  case UPTO(r, m) => true
+  case FROM(r, n) => if (n == 0) true else nullable(r)
+  case BETWEEN(r, n, m) => if (n == 0) true else nullable(r)
+  case NOT(r) => !nullable(r)
 }
 
 def der (c: Char, r: Rexp) : Rexp = r match {
@@ -75,6 +96,21 @@ def der (c: Char, r: Rexp) : Rexp = r match {
     else SEQ(der(c, r1), r2)
   case STAR(r) => SEQ(der(c, r), STAR(r))
   case RECD(_, r1) => der(c, r1)
+  case NTIMES(r, i) => 
+    if (i == 0) ZERO else SEQ(der(c, r), NTIMES(r, i - 1))
+  case RANGE(ls) => if (ls.contains(c)) ONE else ZERO
+  case PL(r) => SEQ(der(c, r), STAR(r))
+  case OPTIONAL(r) => der(c, r)
+  case UPTO(r, i) =>
+    if (i == 0) ZERO else SEQ(der(c, r), UPTO(r, i - 1))
+  case FROM(r, i) =>
+    if (i == 0) SEQ(der(c, r), STAR(r))
+    else SEQ(der(c, r), FROM(r, i - 1))
+  case BETWEEN(r, i, j) =>
+    if (j == 0) ZERO
+    else if (i == 0) SEQ(der(c, r), UPTO(r, j - 1))
+    else SEQ(der(c, r), BETWEEN(r, i - 1, j - 1))
+  case NOT(r) => NOT(der(c, r))
 }
 
 
@@ -87,6 +123,9 @@ def flatten(v: Val) : String = v match {
   case Sequ(v1, v2) => flatten(v1) + flatten(v2)
   case Stars(vs) => vs.map(flatten).mkString
   case Rec(_, v) => flatten(v)
+  case Pl(vs) => vs.map(flatten).mkString
+  case Opt(v) => flatten(v)
+  case Ntimes(vs) => vs.map(flatten).mkString
 }
 
 // extracts an environment from a value;
@@ -99,6 +138,9 @@ def env(v: Val) : List[(String, String)] = v match {
   case Sequ(v1, v2) => env(v1) ::: env(v2)
   case Stars(vs) => vs.flatMap(env)
   case Rec(x, v) => (x, flatten(v))::env(v)
+  case Pl(vs) => vs.flatMap(env)
+  case Opt(v) => env(v)
+  case Ntimes(vs) => vs.flatMap(env)
 }
 
 // The Injection Part of the lexer
@@ -110,6 +152,9 @@ def mkeps(r: Rexp) : Val = r match {
   case SEQ(r1, r2) => Sequ(mkeps(r1), mkeps(r2))
   case STAR(r) => Stars(Nil)
   case RECD(x, r) => Rec(x, mkeps(r))
+  case PL(r) => Sequ(mkeps(r), Pl(Nil))
+  case OPTIONAL(r) => Empty
+  case NTIMES(r, i) => if (i == 0) Ntimes(Nil) else Ntimes(List(mkeps(r)))
 }
 
 def inj(r: Rexp, c: Char, v: Val) : Val = (r, v) match {
@@ -121,6 +166,10 @@ def inj(r: Rexp, c: Char, v: Val) : Val = (r, v) match {
   case (ALT(r1, r2), Right(v2)) => Right(inj(r2, c, v2))
   case (CHAR(d), Empty) => Chr(c) 
   case (RECD(x, r1), _) => Rec(x, inj(r1, c, v))
+  case (RANGE(ls), Empty) => Chr(c)
+  case (PL(r), Sequ(v, Pl(vs))) => Pl(inj(r, c, v)::vs)  
+  case (OPTIONAL(r), Empty) => Opt(inj(r, c, v))
+  case (NTIMES(r, i), Sequ(v, Ntimes(vs))) => Ntimes(inj(r, c, v)::vs)
   case _ => { println ("Injection error") ; sys.exit(-1) } 
 }
 
@@ -206,6 +255,7 @@ val ALL = SYM | DIGIT | OP | " " | ":" | ";" | "\"" | "=" | "," | "(" | ")"
 val ALL2 = ALL | "\n"
 val COMMENT = ("/*" ~ ALL2.% ~ "*/") | ("//" ~ ALL.% ~ "\n")
 val TYPE = "Int" | "Double" | "Void"
+val NUMTYPE = "Int" | "Double"
 val FLOAT = OPTIONAL("-") ~ NUM ~ "." ~ NUM.%
 
 
@@ -218,8 +268,9 @@ val FUN_REGS = (("k" $ KEYWORD) |
                   ("pl" $ LPAREN) |
                   ("pr" $ RPAREN) |
                   ("w" $ (WHITESPACE | COMMENT)) |
-                  ("ty" $ TYPE)
-                  ("f" $ FLOAT)).%
+                  ("ty" $ TYPE) |
+                  ("f" $ FLOAT) |
+                  ("nt" $ NUMTYPE)).%
 
 
 
@@ -234,9 +285,10 @@ case object T_RPAREN extends Token
 case class T_ID(s: String) extends Token
 case class T_OP(s: String) extends Token
 case class T_NUM(n: Int) extends Token
-case class T_FLOAT(n: Float) extends Token
+case class T_FLOAT(n: Double) extends Token
 case class T_KWD(s: String) extends Token
 case class T_TYPE(s: String) extends Token
+case class T_NUMTYPE(s: String) extends Token
 
 val token : PartialFunction[(String, String), Token] = {
   case ("k", s) => T_KWD(s)
@@ -250,6 +302,7 @@ val token : PartialFunction[(String, String), Token] = {
   case ("pl", _) => T_LPAREN
   case ("pr", _) => T_RPAREN
   case ("ty", s) => T_TYPE(s)
+  case ("nt", s) => T_NUMTYPE(s)
 }
 
 
