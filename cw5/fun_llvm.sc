@@ -59,13 +59,13 @@ abstract class KVal
 
 case class KVar(s: String, ty: String = "UNDEF") extends KVal
 case class KNum(i: Int) extends KVal
-case class KFNum(f: Float)
+case class KFNum(f: Double) extends KVal
 case class Kop(o: String, v1: KVal, v2: KVal) extends KVal
 case class KCall(o: String, vrs: List[KVal]) extends KVal
 case class KWrite(v: KVal) extends KVal
 case class KConst(s: String) extends KVal
 case class KFConst(s: String) extends KVal
-case class KVoid extends KVal
+case object KVoid extends KVal
 
 
 case class KLet(x: String, e1: KVal, e2: KExp) extends KExp {
@@ -79,10 +79,15 @@ case class KIf(x1: String, e1: KExp, e2: KExp) extends KExp {
 }
 case class KReturn(v: KVal) extends KExp
 
-// Converting types to LLVM types
-var type_conversion = Map("Int" -> "i32", "Double" -> "double", "Void" -> "void")
 // Typing environment that updates what type everything receives
 type TyEnv = Map[String, String]
+// Converting types to LLVM types
+var type_conversion = Map("Int" -> "i32", "Double" -> "double", "Void" -> "void")
+// From prelude
+var builtin_funcs = Map("new_line" -> "Void", "print_star" -> "Void",
+                        "print_space" -> "Void", "skip" -> "Void",
+                        "print_int" -> "Void")
+
 
 def typ_val(v: KVal, ts: TyEnv) : String = v match {
   case KVar(s, ty) => ts(s)
@@ -110,17 +115,17 @@ def CPS(e: Exp)(k: KVal => KExp) : KExp = e match {
   // Var can store either Int or Double
   case Var(s) => {
     if (s.head.isUpper) {
-      if (typ_val(s, ts) == "Int") {
+      if (typ_val(KVar(s), builtin_funcs) == "Int") {
         val lab = Fresh("tmp")
-        ts += (lab -> "Int")
+        builtin_funcs += (lab -> "Int")
         KLet(lab, KConst(s), k(KVar(lab, "Int")))
       } else { // if Double
         val lab = Fresh("tmp")
-        ts += (lab -> "Double")
-        KLet(lab, KCFonst(s), k(KVar(lab, "Double")))
+        builtin_funcs += (lab -> "Double")
+        KLet(lab, KFConst(s), k(KVar(lab, "Double")))
       }
     } else { // not a constant
-      k(KVar(s, typ_val(KVar(s), ts)))
+      k(KVar(s, typ_val(KVar(s), builtin_funcs)))
     }
   }
   case Num(i) => k(KNum(i))
@@ -129,9 +134,9 @@ def CPS(e: Exp)(k: KVal => KExp) : KExp = e match {
     val z = Fresh("tmp")
     CPS(e1)(y1 => 
       CPS(e2)(y2 => {
-        val type = typ_val(Kop(o, y1, y2), ts)
-        ts += (z, type)
-        KLet(z, Kop(o, y1, y2), k(KVar(z, type)))
+        // var type = typ_val(Kop(o, y1, y2), builtin_funcs)
+        builtin_funcs += z -> typ_val(Kop(o, y1, y2), builtin_funcs)
+        KLet(z, Kop(o, y1, y2), k(KVar(z, typ_val(Kop(o, y1, y2), builtin_funcs))))
       }))
   }
   case If(Bop(o, b1, b2), e1, e2) => {
@@ -144,21 +149,21 @@ def CPS(e: Exp)(k: KVal => KExp) : KExp = e match {
   case Call(name, args) => {
     def aux(args: List[Exp], vs: List[KVal]) : KExp = args match {
       case Nil => {
-        typ_val(KVar(name), ts) match {
+        typ_val(KVar(name), builtin_funcs) match {
           case "Int" => {
             val lab = Fresh("tmp")
-            ts += (lab, "Int")
-            KLet(z, KCall(name, vs), k(KVar(z, "Int")))
+            builtin_funcs += lab -> "Int"
+            KLet(lab, KCall(name, vs), k(KVar(lab, "Int")))
           }
           case "Double" => {
             val lab = Fresh("tmp")
-            ts += (lab, "Double")
-            KLet(z, KCall(name, vs), k(KVar(z, "Double")))
+            builtin_funcs += lab -> "Double"
+            KLet(lab, KCall(name, vs), k(KVar(lab, "Double")))
           }
           case "Void" => {
             val lab = Fresh("tmp")
-            ts += (lab, "Void")
-            KLet(z, KCall(name, vs), k(KVar(z, "Void")))
+            builtin_funcs += lab -> "Void"
+            KLet(lab, KCall(name, vs), k(KVar(lab, "Void")))
           }
         }
       }
@@ -286,19 +291,22 @@ def compile_dop(op: String) = op match {
   case "<"  => "fcmp olt double "     // signed less than
 }
 
-// Add the other compile from the spec
+
 
 // compile K values
 def compile_val(v: KVal) : String = v match {
   case KNum(i) => s"$i"
   case KFNum(f) => s"$f"
-  case KVar(s) => s"%$s"
+  case KVar(s, _) => s"%$s"
   case Kop(op, x1, x2) => 
     s"${compile_op(op)} ${compile_val(x1)}, ${compile_val(x2)}"
   case KCall(x1, args) => 
     s"call i32 @$x1 (${args.map(compile_val).mkString("i32 ", ", i32 ", "")})"
   case KWrite(x1) =>
     s"call i32 @printInt (i32 ${compile_val(x1)})"
+  
+  // Should extend to add for kop using double and int
+  // kcall for all the argument or return types?
 }
 
 // compile K expressions
@@ -316,6 +324,9 @@ def compile_exp(a: KExp) : String = a match {
     l"\n$else_br" ++ 
     compile_exp(e2)
   }
+
+  // extend for all the return types
+  // possibly for klet
 }
 
 
@@ -335,7 +346,7 @@ define i32 @printInt(i32 %x) {
 
 // compile function for declarations and main
 def compile_decl(d: Decl) : String = d match {
-  case Def(name, args, body) => { 
+  case Def(name, args, ret_type, body) => { 
     m"define i32 @$name (${args.mkString("i32 %", ", i32 %", "")}) {" ++
     compile_exp(CPSi(body)) ++
     m"}\n"
@@ -347,6 +358,7 @@ def compile_decl(d: Decl) : String = d match {
   }
 
   // Add other decl statements, const and fconst
+  // def might need to be extended
 }
 
 
