@@ -222,6 +222,8 @@ def simp(r: Rexp): (Rexp, Val => Val) = r match {
   case r => (r, F_ID)
 }
 
+
+
 // lexing functions including simplification
 def lex_simp(r: Rexp, s: List[Char]) : Val = s match {
   case Nil => if (nullable(r)) mkeps(r) else { println ("Lexing Error") ; sys.exit(-1) } 
@@ -240,16 +242,21 @@ def PLUS(r: Rexp) = r ~ r.%
 
 val SYM = "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j" | "k" | 
           "l" | "m" | "n" | "o" | "p" | "q" | "r" | "s" | "t" | "u" | "v" | 
-          "w" | "x" | "y" | "z" | "T" | "_"
+          "w" | "x" | "y" | "z" | "_" | "A" | "B" | "C" | "D" | "E" | "F" |
+          "G" | "H" | "I" | "J" | "K" | "L" | "M" | "N" | "O" | "P" | "Q" |
+          "R" | "S" | "T" | "U" | "V" | "W" | "X" | "Y" | "Z" | "_"
 val DIGIT = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
 val ID = SYM ~ (SYM | DIGIT).% 
 val NUM = OPTIONAL("-") ~ PLUS(DIGIT)
 val KEYWORD : Rexp = "if" | "then" | "else" | "write" | "def"
 val SEMI: Rexp = ";"
+val COLON: Rexp = ":"
 val OP: Rexp = "=" | "==" | "-" | "+" | "*" | "!=" | "<" | ">" | "<=" | ">=" | "%" | "/"
 val WHITESPACE = PLUS(" " | "\n" | "\t" | "\r")
 val RPAREN: Rexp = ")"
 val LPAREN: Rexp = "("
+val LBRACE: Rexp = "{"
+val RBRACE: Rexp = "}"
 val COMMA: Rexp = ","
 val ALL = SYM | DIGIT | OP | " " | ":" | ";" | "\"" | "=" | "," | "(" | ")"
 val ALL2 = ALL | "\n"
@@ -267,9 +274,12 @@ val FUN_REGS = (("k" $ KEYWORD) |
                   ("c" $ COMMA) |
                   ("pl" $ LPAREN) |
                   ("pr" $ RPAREN) |
+                  ("bl" $ LBRACE) |
+                  ("br" $ RBRACE) |
                   ("w" $ (WHITESPACE | COMMENT)) |
                   ("ty" $ TYPE) |
                   ("f" $ FLOAT) |
+                  ("cl" $ COLON) |
                   ("nt" $ NUMTYPE)).%
 
 
@@ -282,6 +292,8 @@ case object T_COLON extends Token
 case object T_COMMA extends Token
 case object T_LPAREN extends Token
 case object T_RPAREN extends Token
+case object T_LBRACE extends Token
+case object T_RBRACE extends Token
 case class T_ID(s: String) extends Token
 case class T_OP(s: String) extends Token
 case class T_NUM(n: Int) extends Token
@@ -289,6 +301,7 @@ case class T_FLOAT(n: Double) extends Token
 case class T_KWD(s: String) extends Token
 case class T_TYPE(s: String) extends Token
 case class T_NUMTYPE(s: String) extends Token
+case class T_WHITESPACE(s: String) extends Token
 
 val token : PartialFunction[(String, String), Token] = {
   case ("k", s) => T_KWD(s)
@@ -301,8 +314,11 @@ val token : PartialFunction[(String, String), Token] = {
   case ("c", _) => T_COMMA
   case ("pl", _) => T_LPAREN
   case ("pr", _) => T_RPAREN
+  case ("bl", _) => T_LBRACE
+  case ("br", _) => T_RBRACE
   case ("ty", s) => T_TYPE(s)
   case ("nt", s) => T_NUMTYPE(s)
+  case ("w", s) => T_WHITESPACE(s)
 }
 
 
@@ -323,3 +339,4 @@ def tokenise(s: String) : List[Token] = {
 def main(fname: String) = {
   println(tokenise(os.read(os.pwd / fname)))
 }
+
