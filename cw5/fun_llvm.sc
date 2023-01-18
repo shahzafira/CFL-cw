@@ -41,6 +41,8 @@
 //    ./a.out
 
 
+// chconst is turning ascii to a number
+
 import $file.fun_tokens, fun_tokens._
 import $file.fun_parser, fun_parser._ 
 
@@ -81,8 +83,6 @@ case class KReturn(v: KVal) extends KExp
 
 // Typing environment that updates what type everything receives
 type TyEnv = Map[String, String]
-// Converting types to LLVM types
-var type_conversion = Map("Int" -> "i32", "Double" -> "double", "Void" -> "void")
 // From prelude
 var builtin_funcs = Map("new_line" -> "Void", "print_star" -> "Void",
                         "print_space" -> "Void", "skip" -> "Void",
@@ -110,148 +110,87 @@ def typ_exp(a: KExp, ts: TyEnv) : String = a match {
 
 // CPS translation from Exps to KExps using a
 // continuation k.
-def CPS(e: Exp)(k: KVal => KExp) : KExp = e match {
+def CPS(e: Exp, env: TyEnv)(k: (KVal, TyEnv) => (KExp, TyEnv)) : (KExp, TyEnv) = e match {
   // Check the name to see if it is a constant
   // Var can store either Int or Double
   case Var(s) => {
     if (s.head.isUpper) {
-      if (typ_val(KVar(s), builtin_funcs) == "Int") {
+      if (typ_val(KVar(s), env) == "Int") {
         val lab = Fresh("tmp")
-        builtin_funcs += (lab -> "Int")
-        KLet(lab, KConst(s), k(KVar(lab, "Int")))
+        var new_env = env + (lab -> "Int")
+        CPS(Var(lab), new_env)((y1, env1) => {
+          val k1 = k(KVar(lab, "Int"), env1)
+          (KLet(lab, KConst(s), k1._1), k1._2)
+        })
       } else { // if Double
         val lab = Fresh("tmp")
-        builtin_funcs += (lab -> "Double")
-        KLet(lab, KFConst(s), k(KVar(lab, "Double")))
+        var new_env = env + (lab -> "Double")
+        CPS(Var(lab), new_env)((y1, env1) => {
+          val k1 = k(KVar(lab, "Double"), env1)
+          (KLet(lab, KConst(s), k1._1), k1._2)
+        })
       }
     } else { // not a constant
-      k(KVar(s, typ_val(KVar(s), builtin_funcs)))
+      k(KVar(s, typ_val(KVar(s), env)), env)
     }
   }
-  case Num(i) => k(KNum(i))
-  case FNum(f) => k(KFNum(f))
+  case Num(i) => k(KNum(i), env)
+  case FNum(f) => k(KFNum(f), env)
   case Aop(o, e1, e2) => {
-    val z = Fresh("tmp")
-    CPS(e1)(y1 => 
-      CPS(e2)(y2 => {
-        // var type = typ_val(Kop(o, y1, y2), builtin_funcs)
-        builtin_funcs += z -> typ_val(Kop(o, y1, y2), builtin_funcs)
-        KLet(z, Kop(o, y1, y2), k(KVar(z, typ_val(Kop(o, y1, y2), builtin_funcs))))
+    val lab = Fresh("tmp")
+    CPS(e1, env)((y1, env1) => 
+      CPS(e2, env1)((y2, env2) => {
+        var new_env = env2 + (lab -> typ_val(Kop(o, y1, y2), env2))
+        val k1 = k(KVar(lab, typ_val(Kop(o, y1, y2), new_env)), new_env)
+        (KLet(lab, Kop(o, y1, y2), k1._1), k1._2)
       }))
   }
   case If(Bop(o, b1, b2), e1, e2) => {
-    val z = Fresh("tmp")
-    CPS(b1)(y1 => 
-      CPS(b2)(y2 => 
-        KLet(z, Kop(o, y1, y2), KIf(z, CPS(e1)(k), CPS(e2)(k)))))
+    val lab = Fresh("tmp")
+    CPS(b1, env)((y1, env1) => 
+      CPS(b2, env1)((y2, env2) => 
+        (KLet(lab, Kop(o, y1, y2), KIf(lab, CPS(e1, env2)(k)._1, CPS(e2, env2)(k)._1)), env2)))
   }
   // Different cases for each return type
   case Call(name, args) => {
-    def aux(args: List[Exp], vs: List[KVal]) : KExp = args match {
+    def aux(args: List[Exp], vs: List[KVal]) : (KExp, TyEnv) = args match {
       case Nil => {
-        typ_val(KVar(name), builtin_funcs) match {
+        typ_val(KVar(name), env) match {
           case "Int" => {
             val lab = Fresh("tmp")
-            builtin_funcs += lab -> "Int"
-            KLet(lab, KCall(name, vs), k(KVar(lab, "Int")))
+            var new_env = env + (lab -> "Int")
+            val k1 = k(KVar(lab, "Int"), new_env)
+            (KLet(lab, KCall(name, vs), k1._1), k1._2)
           }
           case "Double" => {
             val lab = Fresh("tmp")
-            builtin_funcs += lab -> "Double"
-            KLet(lab, KCall(name, vs), k(KVar(lab, "Double")))
+            var new_env = env + (lab -> "Double")
+            val k1 = k(KVar(lab, "Double"), new_env)
+            (KLet(lab, KCall(name, vs), k1._1), k1._2)
           }
           case "Void" => {
             val lab = Fresh("tmp")
-            builtin_funcs += lab -> "Void"
-            KLet(lab, KCall(name, vs), k(KVar(lab, "Void")))
+            var new_env = env + (lab -> "Void")
+            val k1 = k(KVar(lab, "Void"), new_env)
+            (KLet(lab, KCall(name, vs), k1._1), k1._2)
           }
         }
       }
-      case e::es => CPS(e)(y => aux(es, vs ::: List(y)))
+      case e::es => CPS(e, env)((y, env) => (aux(es, vs ::: List(y))))
     }
     aux(args, Nil)
   }
   case Sequence(e1, e2) => 
-    CPS(e1)(_ => CPS(e2)(y2 => k(y2)))
+    CPS(e1, env)((_, env1) => CPS(e2, env1)((y2, env2) => k(y2, env2)))
   case Write(e) => {
-    val z = Fresh("tmp")
-    CPS(e)(y => KLet(z, KWrite(y), k(KVar(z, "Void"))))
+    val lab = Fresh("tmp")
+    val k1 = k(KVar(lab, "Void"), env)
+    CPS(e, env)((y, env) => (KLet(lab, KWrite(y), k1._1), k1._2))
   }
-}   
+}
 
 //initial continuation
-def CPSi(e: Exp) = CPS(e)(KReturn)
-
-//some testcases:
-// (1 + 2) * 3
-println(CPSi(Aop("*", Aop("+", Num(1), Num(2)), Num(3))).toString)
-
-// 3 * (1 + 2)
-println(CPSi(Aop("*", Num(3), Aop("+", Num(1), Num(2)))).toString)
-
-//some testcases:
-
-// numbers and vars   
-println(CPSi(Num(1)).toString)
-println(CPSi(Var("z")).toString)
-
-//  a * 3
-val e1 = Aop("*", Var("a"), Num(3))
-println(CPSi(e1).toString)
-
-// (a * 3) + 4
-val e2 = Aop("+", Aop("*", Var("a"), Num(3)), Num(4))
-println(CPSi(e2).toString)
-
-// 2 + (a * 3)
-val e3 = Aop("+", Num(2), Aop("*", Var("a"), Num(3)))
-println(CPSi(e3).toString)
-
-//(1 - 2) + (a * 3)
-val e4 = Aop("+", Aop("-", Num(1), Num(2)), Aop("*", Var("a"), Num(3)))
-println(CPSi(e4).toString)
-
-// 3 + 4 ; 1 * 7
-val es = Sequence(Aop("+", Num(3), Num(4)),
-                  Aop("*", Num(1), Num(7)))
-println(CPSi(es).toString)
-
-// if (1 == 1) then 3 else 4
-val e5 = If(Bop("==", Num(1), Num(1)), Num(3), Num(4))
-println(CPSi(e5).toString)
-
-// if (1 == 1) then 3 + 7 else 4 * 2
-val ei = If(Bop("==", Num(1), Num(1)), 
-                Aop("+", Num(3), Num(7)),
-                Aop("*", Num(4), Num(2)))
-println(CPSi(ei).toString)
-
-
-// if (10 != 10) then e5 else 40
-val e6 = If(Bop("!=", Num(10), Num(10)), e5, Num(40))
-println(CPSi(e6).toString)
-
-
-// foo(3)
-val e7 = Call("foo", List(Num(3)))
-println(CPSi(e7).toString)
-
-// foo(3 * 1, 4, 5 + 6)
-val e8 = Call("foo", List(Aop("*", Num(3), Num(1)), 
-                          Num(4), 
-                          Aop("+", Num(5), Num(6))))
-println(CPSi(e8).toString)
-
-// a * 3 ; b + 6
-val e9 = Sequence(Aop("*", Var("a"), Num(3)), 
-                  Aop("+", Var("b"), Num(6)))
-println(CPSi(e9).toString)
-
-
-val e10 = Aop("*", Aop("+", Num(1), Call("foo", List(Var("a"), Num(3)))), Num(4))
-println(CPSi(e10).toString)
-
-
+def CPSi(e: Exp, env: TyEnv) = CPS(e, env)((e1, env1) => (KReturn(e1), env1))
 
 
 
@@ -291,44 +230,61 @@ def compile_dop(op: String) = op match {
   case "<"  => "fcmp olt double "     // signed less than
 }
 
-
+// Converting types to LLVM types
+var type_conversion = Map("Int" -> "i32", "Double" -> "double", "Void" -> "void")
 
 // compile K values
-def compile_val(v: KVal) : String = v match {
+def compile_val(v: KVal, env: TyEnv) : String = v match {
   case KNum(i) => s"$i"
   case KFNum(f) => s"$f"
   case KVar(s, _) => s"%$s"
   case Kop(op, x1, x2) => 
-    s"${compile_op(op)} ${compile_val(x1)}, ${compile_val(x2)}"
-  case KCall(x1, args) => 
-    s"call i32 @$x1 (${args.map(compile_val).mkString("i32 ", ", i32 ", "")})"
+    s"${compile_op(op)} ${compile_val(x1,env)}, ${compile_val(x2, env)}"
+  case KCall(x1, args) => {
+    typ_val(KVar(x1), env) match {
+      case "Int" => {
+        var instr = s"call i32 @$x1 ("
+        var args_list = args.map(arg => s"${type_conversion(typ_val(arg, env))} %${compile_val(arg, env)}").mkString(", ")
+        instr.concat(s"${args_list})")
+      }
+      case "Double" => {
+        var instr = s"call double @$x1 ("
+        var args_list = args.map(arg => s"${type_conversion(typ_val(arg, env))} %${compile_val(arg, env)}").mkString(", ")
+        instr.concat(s"${args_list})")
+      }
+      case "Void" => {
+        var instr = s"call void @$x1 ("
+        var args_list = args.map(arg => s"${type_conversion(typ_val(arg, env))} %${compile_val(arg, env)}").mkString(", ")
+        instr.concat(s"${args_list})")
+      }
+    }
+  }
   case KWrite(x1) =>
-    s"call i32 @printInt (i32 ${compile_val(x1)})"
+    s"call i32 @printInt (i32 ${compile_val(x1, env)})"
   
   // Should extend to add for kop using double and int
   // kcall for all the argument or return types?
 }
 
 // compile K expressions
-def compile_exp(a: KExp) : String = a match {
+def compile_exp(a: KExp, env: TyEnv) : String = a match {
   case KReturn(v) =>
-    i"ret i32 ${compile_val(v)}"
+    i"ret i32 ${compile_val(v, env)}"
   case KLet(x: String, v: KVal, e: KExp) => 
-    i"%$x = ${compile_val(v)}" ++ compile_exp(e)
+    i"%$x = ${compile_val(v, env)}" ++ compile_exp(e, env)
   case KIf(x, e1, e2) => {
     val if_br = Fresh("if_branch")
     val else_br = Fresh("else_branch")
     i"br i1 %$x, label %$if_br, label %$else_br" ++
     l"\n$if_br" ++
-    compile_exp(e1) ++
+    compile_exp(e1, env) ++
     l"\n$else_br" ++ 
-    compile_exp(e2)
+    compile_exp(e2, env)
   }
 
   // extend for all the return types
   // possibly for klet
 }
-
 
 val prelude = """
 @.str = private constant [4 x i8] c"%d\0A\00"
@@ -345,16 +301,34 @@ define i32 @printInt(i32 %x) {
 
 
 // compile function for declarations and main
-def compile_decl(d: Decl) : String = d match {
+def compile_decl(d: Decl, env: TyEnv) : (String, TyEnv) = d match {
   case Def(name, args, ret_type, body) => { 
-    m"define i32 @$name (${args.mkString("i32 %", ", i32 %", "")}) {" ++
-    compile_exp(CPSi(body)) ++
-    m"}\n"
+    ret_type match {
+      case "Int" => {
+        val new_env = env + (name -> ret_type)
+        var instr = s"define i32 @$name ("
+        var args_list = args.map(arg => s"${type_conversion(typ_val(KVar(arg._1), new_env))} %${compile_val(KVar(arg._1), new_env)}").mkString(", ")
+        val cps = CPSi(body, new_env)
+        (instr.concat(s"${args_list}) {${compile_exp(cps._1, cps._2)}}\n"), cps._2)
+      }
+      case "Double" => {val new_env = env + (name -> ret_type)
+        var instr = s"define double @$name ("
+        var args_list = args.map(arg => s"${type_conversion(typ_val(KVar(arg._1), new_env))} %${compile_val(KVar(arg._1), new_env)}").mkString(", ")
+        val cps = CPSi(body, new_env)
+        (instr.concat(s"${args_list}) {${compile_exp(cps._1, cps._2)}}\n"), cps._2)
+      }
+      case "Void" => {
+        val new_env = env + (name -> ret_type)
+        var instr = s"define void @$name ("
+        var args_list = args.map(arg => s"${type_conversion(typ_val(KVar(arg._1), new_env))} %${compile_val(KVar(arg._1), new_env)}").mkString(", ")
+        val cps = CPSi(body, new_env)
+        (instr.concat(s"${args_list}) {${compile_exp(cps._1, cps._2)}}\n"), cps._2)
+      }
+    }
   }
   case Main(body) => {
-    m"define i32 @main() {" ++
-    compile_exp(CPS(body)(_ => KReturn(KNum(0)))) ++
-    m"}\n"
+    val cps = CPS(body, env)((_, env1) => (KReturn(KNum(0)), env1))
+    (s"define i32 @main() {${compile_exp(cps._1, cps._2)}}\n", cps._2)
   }
 
   // Add other decl statements, const and fconst
@@ -363,8 +337,8 @@ def compile_decl(d: Decl) : String = d match {
 
 
 // main compiler functions
-def compile(prog: List[Decl]) : String = 
-  prelude ++ (prog.map(compile_decl).mkString)
+def compile(prog: List[Decl], env: TyEnv = builtin_funcs) : String = 
+  prelude ++ (prog.map(line => compile_decl(line, env)).mkString)
 
 
 // pre-2.5.0 ammonite 
@@ -405,7 +379,22 @@ def run(fname: String) = {
 }
 
 
+// @main
+// def test1() ={
+//   val code = """val Max : Int = 10;
 
+// def sqr(x: Int) : Int = x * x;
+
+// def all(n: Int) : Void = {
+//   if n <= Max
+//   then { print_int(sqr(n)) ; new_line(); all(n + 1) }
+//   else skip()
+// };
+
+// all(0)
+//  """
+//  print(tokenise(code))
+// }
 
 // CPS functions
 /*
