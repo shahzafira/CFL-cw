@@ -135,6 +135,15 @@ case object CharParser extends Parser[List[Token], String] {
   }
 }
 
+// Parses all the arguments passed to a function
+case object ArgumentsParser extends Parser[List[Token], (String, String)] {
+  def parse(ts: List[Token]) = ts match {
+    case T_ID(s)::T_COLON::T_TYPE(t)::ts => Set(((s, t), ts))
+    case _ => Set()
+  }
+}
+
+
 
 // Abstract syntax trees for the Fun language
 abstract class Exp extends Serializable 
@@ -199,6 +208,8 @@ lazy val BExp: Parser[List[Token], BExp] =
 lazy val Defn: Parser[List[Token], Decl] =
   (T_KWD("def") ~ IdParser ~ T_LPAREN ~ ListParser(IdParser ~ T_COLON ~ NumericTypeParser, T_COMMA) ~ T_RPAREN ~ T_COLON ~ TypeParser ~ T_OP("=") ~ Exp) ==>
     { case _ ~ w ~ _ ~ x ~ _ ~ _ ~ y ~ _ ~ z => Def(w, x.map({case a ~ b ~ c => (a, c)}).toList, y, z): Decl } ||
+  // (T_KWD("def") ~ IdParser ~ T_LPAREN ~ ListParser(ArgumentsParser, T_COMMA) ~ T_RPAREN ~ T_COLON ~ TypeParser ~ T_OP("=") ~ Exp) ==>
+  //   { case _ ~ w ~ _ ~ x ~ _ ~ _ ~ y ~ _ ~ z => Def(w, x, y, z): Decl } ||
   (T_KWD("def") ~ IdParser ~ T_LPAREN ~ T_RPAREN ~ T_COLON ~ TypeParser ~ T_OP("=") ~ Exp) ==>
     { case _ ~ x ~ _ ~ _ ~ _ ~ y ~ _ ~ z => Def(x, List(), y, z): Decl } ||
   (T_KWD("val") ~ IdParser ~ T_COLON ~ T_TYPE("Int") ~ T_OP("=") ~ NumParser) ==>
