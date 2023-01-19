@@ -28,7 +28,7 @@ abstract class Parser[I, T](implicit ev: I => Seq[_]) {
     parse(ts).partition(_._2.isEmpty) match {
       case (good, _) if !good.isEmpty => good.head._1
       case (_, err) => { 
-	println (s"Parse Error\n${err.minBy(_._2.length)}") ; sys.exit(-1) }
+	println (s"Parse Error\n${err.minBy(_._2.length)}") ; sys.exit(0) }
     }
 }
 
@@ -127,10 +127,18 @@ case object TypeParser extends Parser[List[Token], String] {
 
 case object NumericTypeParser extends Parser[List[Token], String] {
   def parse(ts: List[Token]) = ts match {
-    case T_NUMTYPE(s)::ts => Set((s, ts))
+    case T_TYPE("Int")::ts => Set(("Int", ts))
+    case T_TYPE("Double")::ts => Set(("Double", ts))
     case _ => Set()
   }
 }
+
+// case object CharParser extends Parser[List[Token], String] {
+//   def parse(ts: List[Token]) = ts match {
+//     case ::ts => Set((s, ts))
+//     case _ => Set()
+//   }
+// }
 
 
 // Abstract syntax trees for the Fun language
@@ -155,14 +163,15 @@ case class Sequence(e1: Exp, e2: Exp) extends Exp
 case class Bop(o: String, a1: Exp, a2: Exp) extends BExp
 
 
-
 // Grammar Rules for the Fun language
 
 // arithmetic expressions
 lazy val Exp: Parser[List[Token], Exp] = 
   (T_KWD("if") ~ BExp ~ T_KWD("then") ~ Exp ~ T_KWD("else") ~ Exp) ==>
     { case _ ~ x ~ _ ~ y ~ _ ~ z => If(x, y, z): Exp } ||
-  (M ~ T_SEMI ~ Exp) ==> { case x ~ _ ~ y => Sequence(x, y): Exp } || M
+  (M ~ T_SEMI ~ Exp) ==> { case x ~ _ ~ y => Sequence(x, y): Exp } ||
+  (T_LBRACE ~ Exp ~ T_RBRACE) ==> { case _ ~ z ~ _ => z : Exp } ||
+  M
 lazy val M: Parser[List[Token], Exp] =
   (T_KWD("write") ~ L) ==> { case _ ~ y => Write(y): Exp } || L
 lazy val L: Parser[List[Token], Exp] = 
@@ -176,9 +185,10 @@ lazy val F: Parser[List[Token], Exp] =
   (IdParser ~ T_LPAREN ~ ListParser(Exp, T_COMMA) ~ T_RPAREN) ==> 
     { case x ~ _ ~ z ~ _ => Call(x, z): Exp } ||
   (T_LPAREN ~ Exp ~ T_RPAREN) ==> { case _ ~ y ~ _ => y: Exp } || 
+  (T_LBRACE ~ Exp ~ T_RBRACE) ==> { case _ ~ z ~ _ => z : Exp } ||
   IdParser ==> { case x => Var(x): Exp } || 
   NumParser ==> { case x => Num(x): Exp } ||
-  FNumParser ==> { case x => FNum(x): Exp } 
+  FNumParser ==> { case x => FNum(x): Exp }
 
 // boolean expressions
 lazy val BExp: Parser[List[Token], BExp] = 
@@ -200,10 +210,10 @@ lazy val Defn: Parser[List[Token], Decl] =
   (T_KWD("val") ~ IdParser ~ T_COLON ~ T_TYPE("Double") ~ T_OP("=") ~ FNumParser) ==>
     { case _ ~ y ~ _ ~ _ ~ _ ~ z => FConst(y, z): Decl } 
 
+
 lazy val Prog: Parser[List[Token], List[Decl]] =
   (Defn ~ T_SEMI ~ Prog) ==> { case x ~ _ ~ z => x :: z : List[Decl] } ||
   (Exp ==> ((s) => List(Main(s)) : List[Decl]))
-
 
 
 // Reading tokens and Writing parse trees
@@ -223,5 +233,6 @@ def main(fname: String) : Unit = {
   val tks = tokenise(os.read(os.pwd / fname))
   println(parse_tks(tks))
 }
+
 
 
