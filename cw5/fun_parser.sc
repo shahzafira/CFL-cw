@@ -15,12 +15,7 @@ import scala.language.reflectiveCalls
 
 import $file.fun_tokens, fun_tokens._ 
 
-//Token not working
-// type Token = (String, String)
-// type Tokens = List[Token]
-// Parser combinators
-//    type parameter I needs to be of Seq-type
-//
+
 abstract class Parser[I, T](implicit ev: I => Seq[_]) {
   def parse(ts: I): Set[(T, I)]
 
@@ -133,12 +128,12 @@ case object NumericTypeParser extends Parser[List[Token], String] {
   }
 }
 
-// case object CharParser extends Parser[List[Token], String] {
-//   def parse(ts: List[Token]) = ts match {
-//     case ::ts => Set((s, ts))
-//     case _ => Set()
-//   }
-// }
+case object CharParser extends Parser[List[Token], String] {
+  def parse(ts: List[Token]) = ts match {
+    case T_CHAR(s)::ts => Set((s, ts))
+    case _ => Set()
+  }
+}
 
 
 // Abstract syntax trees for the Fun language
@@ -188,7 +183,8 @@ lazy val F: Parser[List[Token], Exp] =
   (T_LBRACE ~ Exp ~ T_RBRACE) ==> { case _ ~ z ~ _ => z : Exp } ||
   IdParser ==> { case x => Var(x): Exp } || 
   NumParser ==> { case x => Num(x): Exp } ||
-  FNumParser ==> { case x => FNum(x): Exp }
+  FNumParser ==> { case x => FNum(x): Exp } ||
+  CharParser ==> { case x => ChConst(x.toInt): Exp }
 
 // boolean expressions
 lazy val BExp: Parser[List[Token], BExp] = 
