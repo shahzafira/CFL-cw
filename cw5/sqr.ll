@@ -35,6 +35,12 @@ define void @print_int(i32 %x) {
    ret void
 }
 
+define void @print_char(i32 %x) {
+   %t0 = getelementptr [4 x i8], [4 x i8]* @.str_char, i32 0, i32 0
+   call i32 (i8*, ...) @printf(i8* %t0, i32 %x) 
+   ret void
+}
+
 ; END OF BUILD-IN FUNCTIONS (prelude)
 
 @Max = global i32 10
