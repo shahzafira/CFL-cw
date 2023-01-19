@@ -222,11 +222,9 @@ def simp(r: Rexp): (Rexp, Val => Val) = r match {
   case r => (r, F_ID)
 }
 
-
-
 // lexing functions including simplification
 def lex_simp(r: Rexp, s: List[Char]) : Val = s match {
-  case Nil => if (nullable(r)) mkeps(r) else { println ("Lexing Error") ; sys.exit(-1) } 
+  case Nil => if (nullable(r)) mkeps(r) else { println ("Lexing Error") ; sys.exit(0) } 
   case c::cs => {
     val (r_simp, f_simp) = simp(der(c, r))
     inj(r, c, f_simp(lex_simp(r_simp, cs)))
@@ -245,10 +243,12 @@ val SYM = "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j" | "k" |
           "w" | "x" | "y" | "z" | "_" | "A" | "B" | "C" | "D" | "E" | "F" |
           "G" | "H" | "I" | "J" | "K" | "L" | "M" | "N" | "O" | "P" | "Q" |
           "R" | "S" | "T" | "U" | "V" | "W" | "X" | "Y" | "Z" | "_"
+val TYPE = "Int" | "Double" | "Void"
+val NUMTYPE = "Int" | "Double"
 val DIGIT = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
 val ID = SYM ~ (SYM | DIGIT).% 
 val NUM = OPTIONAL("-") ~ PLUS(DIGIT)
-val KEYWORD : Rexp = "if" | "then" | "else" | "write" | "def"
+val KEYWORD : Rexp = "if" | "then" | "else" | "write" | "def" | "val"
 val SEMI: Rexp = ";"
 val COLON: Rexp = ":"
 val OP: Rexp = "=" | "==" | "-" | "+" | "*" | "!=" | "<" | ">" | "<=" | ">=" | "%" | "/"
@@ -258,30 +258,32 @@ val LPAREN: Rexp = "("
 val LBRACE: Rexp = "{"
 val RBRACE: Rexp = "}"
 val COMMA: Rexp = ","
-val ALL = SYM | DIGIT | OP | " " | ":" | ";" | "\"" | "=" | "," | "(" | ")"
-val ALL2 = ALL | "\n"
-val COMMENT = ("/*" ~ ALL2.% ~ "*/") | ("//" ~ ALL.% ~ "\n")
-val TYPE = "Int" | "Double" | "Void"
-val NUMTYPE = "Int" | "Double"
+val ALL = SYM | DIGIT | OP | " " | ":" | ";" | "\"" | "=" | "," | "(" | ")" | "'"
+val ALL2 = ALL | "\n" | "\r\n"
+val COMMENT = ("/*" ~ ALL2.% ~ "*/") | ("//" ~ ALL.% ~ "\r\n")
 val FLOAT = OPTIONAL("-") ~ NUM ~ "." ~ NUM.%
+val APOST: Rexp = "'"
+val CHARACTER = APOST ~ SYM ~ APOST
+val NEWLINE: Rexp = "\n"
 
-
-val FUN_REGS = (("k" $ KEYWORD) | 
+val FUN_REGS = (("k" $ KEYWORD) |
+                  ("ty" $ TYPE) |
                   ("i" $ ID) | 
                   ("o" $ OP) | 
                   ("n" $ NUM) | 
+                  ("f" $ FLOAT) |
                   ("s" $ SEMI) | 
+                  ("cl" $ COLON) |
                   ("c" $ COMMA) |
                   ("pl" $ LPAREN) |
                   ("pr" $ RPAREN) |
                   ("bl" $ LBRACE) |
                   ("br" $ RBRACE) |
-                  ("w" $ (WHITESPACE | COMMENT)) |
-                  ("ty" $ TYPE) |
-                  ("f" $ FLOAT) |
-                  ("cl" $ COLON) |
-                  ("nt" $ NUMTYPE)).%
-
+                  ("apost" $ APOST) |
+                  ("char" $ CHARACTER) |
+                  ("com" $ COMMENT) |
+                  ("w" $ WHITESPACE) |
+                  ("newline" $ NEWLINE)).%
 
 
 // The tokens for the Fun language
@@ -294,14 +296,16 @@ case object T_LPAREN extends Token
 case object T_RPAREN extends Token
 case object T_LBRACE extends Token
 case object T_RBRACE extends Token
+case object T_APOST extends Token
+case object T_NEWLINE extends Token
 case class T_ID(s: String) extends Token
 case class T_OP(s: String) extends Token
 case class T_NUM(n: Int) extends Token
 case class T_FLOAT(n: Double) extends Token
 case class T_KWD(s: String) extends Token
 case class T_TYPE(s: String) extends Token
-case class T_NUMTYPE(s: String) extends Token
-case class T_WHITESPACE(s: String) extends Token
+case class T_COMMENT(s: String) extends Token
+case class T_CHAR(s: String) extends Token
 
 val token : PartialFunction[(String, String), Token] = {
   case ("k", s) => T_KWD(s)
@@ -317,10 +321,11 @@ val token : PartialFunction[(String, String), Token] = {
   case ("bl", _) => T_LBRACE
   case ("br", _) => T_RBRACE
   case ("ty", s) => T_TYPE(s)
-  case ("nt", s) => T_NUMTYPE(s)
-  case ("w", s) => T_WHITESPACE(s)
+  case ("com", s) => T_COMMENT(s)
+  case ("apost", _) => T_APOST
+  case ("char", s) => T_CHAR(s)
+  case ("newline", s) => T_NEWLINE
 }
-
 
 def tokenise(s: String) : List[Token] = {
   val tks = lexing_simp(FUN_REGS, s).collect(token)
@@ -331,6 +336,7 @@ def tokenise(s: String) : List[Token] = {
 // pre-2.5.0 ammonite 
 // import ammonite.ops._
 
+
 // post 2.5.0 ammonite
 // import os._
 
@@ -339,4 +345,14 @@ def tokenise(s: String) : List[Token] = {
 def main(fname: String) = {
   println(tokenise(os.read(os.pwd / fname)))
 }
+def esc(raw: String): String = {
+  import scala.reflect.runtime.universe._
+  Literal(Constant(raw)).toString
+}
+
+def escape(tks: List[(String, String)]) =
+  tks.map{ case (s1, s2) => (s1, esc(s2))}
+
+
+
 
