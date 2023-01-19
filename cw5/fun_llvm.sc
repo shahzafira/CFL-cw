@@ -70,6 +70,7 @@ case class KFConst(s: String) extends KVal
 case object KVoid extends KVal
 
 
+
 case class KLet(x: String, e1: KVal, e2: KExp) extends KExp {
   override def toString = s"LET $x = $e1 in \n$e2" 
 }
@@ -86,7 +87,7 @@ type TyEnv = Map[String, String]
 // From prelude
 var builtin_funcs = Map("new_line" -> "Void", "print_star" -> "Void",
                         "print_space" -> "Void", "skip" -> "Void",
-                        "print_int" -> "Void")
+                        "print_int" -> "Void", "print_char" -> "Void")
 
 
 def typ_val(v: KVal, ts: TyEnv) : String = v match {
@@ -262,14 +263,17 @@ def compile_val(v: KVal, env: TyEnv) : String = v match {
   case KWrite(x1) =>
     s"call i32 @printInt (i32 ${compile_val(x1, env)})"
   
-  // Should extend to add for kop using double and int
-  // kcall for all the argument or return types?
 }
 
 // compile K expressions
 def compile_exp(a: KExp, env: TyEnv) : String = a match {
-  case KReturn(v) =>
-    i"ret i32 ${compile_val(v, env)}"
+  case KReturn(v) => {
+    typ_val(v, env) match {
+      case "Int" => i"ret i32 ${compile_val(v, env)}"
+      case "Double" => i"ret double ${compile_val(v, env)}"
+      case "Void" => i"ret void"
+    }
+  }
   case KLet(x: String, v: KVal, e: KExp) => 
     i"%$x = ${compile_val(v, env)}" ++ compile_exp(e, env)
   case KIf(x, e1, e2) => {
@@ -282,22 +286,55 @@ def compile_exp(a: KExp, env: TyEnv) : String = a match {
     compile_exp(e2, env)
   }
 
-  // extend for all the return types
-  // possibly for klet
 }
 
 val prelude = """
 @.str = private constant [4 x i8] c"%d\0A\00"
 
-declare i32 @printf(i8*, ...)
+ddeclare i32 @printf(i8*, ...)
 
-define i32 @printInt(i32 %x) {
+@.str_nl = private constant [2 x i8] c"\0A\00"
+@.str_star = private constant [2 x i8] c"*\00"
+@.str_space = private constant [2 x i8] c" \00"
+
+define void @new_line() #0 {
+  %t0 = getelementptr [2 x i8], [2 x i8]* @.str_nl, i32 0, i32 0
+  %1 = call i32 (i8*, ...) @printf(i8* %t0)
+  ret void
+}
+
+define void @print_star() #0 {
+  %t0 = getelementptr [2 x i8], [2 x i8]* @.str_star, i32 0, i32 0
+  %1 = call i32 (i8*, ...) @printf(i8* %t0)
+  ret void
+}
+
+define void @print_space() #0 {
+  %t0 = getelementptr [2 x i8], [2 x i8]* @.str_space, i32 0, i32 0
+  %1 = call i32 (i8*, ...) @printf(i8* %t0)
+  ret void
+}
+
+define void @skip() #0 {
+  ret void
+}
+
+@.str = private constant [4 x i8] c"%d\0A\00"
+
+define void @print_int(i32 %x) {
    %t0 = getelementptr [4 x i8], [4 x i8]* @.str, i32 0, i32 0
    call i32 (i8*, ...) @printf(i8* %t0, i32 %x) 
-   ret i32 %x
+   ret void
+}
+
+define void @print_char(i32 %x) {
+   %t0 = getelementptr [4 x i8], [4 x i8]* @.str_char, i32 0, i32 0
+   call i32 (i8*, ...) @printf(i8* %t0, i32 %x) 
+   ret void
 }
 
 """
+
 
 
 // compile function for declarations and main
@@ -330,9 +367,17 @@ def compile_decl(d: Decl, env: TyEnv) : (String, TyEnv) = d match {
     val cps = CPS(body, env)((_, env1) => (KReturn(KNum(0)), env1))
     (s"define i32 @main() {${compile_exp(cps._1, cps._2)}}\n", cps._2)
   }
+  // example global
+  // @Max = global i32 10 
+  case Const(name, int) => {
+    val new_env = env + (s"${name}" -> "Int")
+    (s"@${name} = global i32 ${int}", new_env)
+  }
+  case FConst(name, double) => {
+    val new_env = env + (s"${name}" -> "Double")
+    (s"@${name} = global double ${double}", new_env)
+  }
 
-  // Add other decl statements, const and fconst
-  // def might need to be extended
 }
 
 
@@ -379,22 +424,53 @@ def run(fname: String) = {
 }
 
 
-// @main
-// def test1() ={
-//   val code = """val Max : Int = 10;
 
-// def sqr(x: Int) : Int = x * x;
+@main
+def test1() = {
+  val code =
+  """val Max : Int = 10;
 
-// def all(n: Int) : Void = {
-//   if n <= Max
-//   then { print_int(sqr(n)) ; new_line(); all(n + 1) }
-//   else skip()
-// };
+  def sqr(x: Int) : Int = x * x;
 
-// all(0)
-//  """
-//  print(tokenise(code))
-// }
+  def all(n: Int) : Void = {
+    if n <= Max
+    then { print_int(sqr(n)) ; new_line(); all(n + 1) }
+    else skip()
+  };
+
+  all(0)
+  """
+  val code1 = 
+  """// a simple factorial program
+// (including a tail recursive version)
+
+
+def fact(n: Int) : Int =
+  if n == 0 then 1 else n * fact(n - 1);
+
+def facT(n: Int, acc: Int) : Int =
+  if n == 0 then acc else facT(n - 1, n * acc);
+
+def facTi(n: Int) : Int = facT(n, 1);
+
+def top() : Void = {
+  print_int(fact(6));
+  print_char(',');
+  print_int(facTi(6));
+  print_char('\n')
+};
+
+top()
+
+  """
+
+  
+  val tks = tokenise(code)
+  println(tks)
+  val ast = parse_tks(tks)
+  println(compile(ast))
+
+}
 
 // CPS functions
 /*
@@ -427,3 +503,8 @@ fibC(10, x => {println(s"Result: $x") ; 1})
 
 
 */
+
+
+
+
+
